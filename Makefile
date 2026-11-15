@@ -17,7 +17,7 @@ include $(RACK_DIR)/plugin.mk
 endif
 
 TEST_CXX ?= g++
-build/silverbox_tests: $(wildcard tests/*.cpp tests/*.hpp src/dsp/*.hpp src/seq/*.hpp)
+build/silverbox_tests: $(wildcard tests/*.cpp tests/*.hpp src/dsp/*.hpp src/seq/*.hpp src/tuning/*.hpp)
 	@mkdir -p build
 	$(TEST_CXX) -std=c++17 -O2 -Wall -Wextra -o $@ $(wildcard tests/*.cpp)
 

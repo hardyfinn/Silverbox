@@ -1,16 +1,154 @@
 #!/usr/bin/env python3
-"""Resonant frequency and critical feedback of the coupled diode ladder (docs/DECISIONS.md items 1 and 4). Needs numpy."""
+"""Calibration of the coupled diode ladder. Needs numpy.
+
+Part 1 (round 1, docs/DECISIONS.md items 1 and 4): resonant frequency and critical feedback at
+the stock bottom-capacitor ratio c1 = 1.8, with and without the feedback high-pass.
+
+Part 2 (round 2, SBF, spec §3.2 and §3.4): for c1 = 1.0 .. 3.0 in steps of 0.1
+  w180(c1)    resonant frequency in system units (where the open-loop phase reaches -180 deg)
+  kcrit0(c1)  critical feedback without the high-pass
+  a, b        fit kcrit(c1, r) / kcrit0(c1) = 1 + a/r + b/r^2, r = fc / BASS, over r = 4 .. 128
+  p, q        fit of the peak shift w_res(r) / w180 = 1 + p/r + q/r^2 (printed for the record)
+  BP, HP      output-tap weights on (u, y1, y2, y3, y4) giving numerators s^2 and s^4.
+              BP is normalised to 0 dB peak gain without feedback; HP is 0 dB well above cutoff.
+              They turn out to be BP = g(c1) * (0, 0, 1, -4, 5) and
+              HP = (1, -(1 + 6/c1), 1 + 26/c1, -48/c1, 42/c1); only g(c1) needs a table.
+With --cpp it prints the tables for src/dsp/ConstantsX.hpp.
+"""
+import sys
 import numpy as np
-c1=1.8; W180=1.3775
-A=np.array([[-c1,c1,0,0],[1,-2,1,0],[0,1,-2,1],[0,0,1,-2]],float); B=np.array([c1,0,0,0.])
-def H(w): return np.linalg.solve(1j*w*np.eye(4)-A,B)[3]
-for r in [1,1.5,2,3,4,6,8,12,16,24,32,64,128]:
-    # fc = r*fhp ; system scale w = fc/W180 ; HP corner in system units = fhp/(fc/W180) = W180/r
-    h=W180/r
-    ws=np.logspace(-1,1.5,20000)
-    L=np.array([H(w)*(1j*w/(1j*w+h)) for w in ws])
-    ph=np.unwrap(np.angle(L)); i=np.argmin(abs(ph+np.pi))
-    print(r, round(ws[i]/W180,4), round(1/abs(L[i]),3))
-# Without the feedback high-pass (very high cutoffs):
-w=np.logspace(-1,1.5,20000); ph=np.unwrap(np.angle([H(x) for x in w])); i=np.argmin(abs(ph+np.pi))
-print("no HP: resonant frequency", w[i], "critical feedback", 1/abs(H(w[i])))
+
+
+def matA(c1):
+    return np.array([[-c1, c1, 0, 0], [1, -2, 1, 0], [0, 1, -2, 1], [0, 0, 1, -2]], float), np.array([c1, 0, 0, 0.])
+
+
+def stages(c1, w):
+    """Open-loop responses of y1..y4 to the input node u, at system frequency w (rad, scaled)."""
+    A, B = matA(c1)
+    return np.linalg.solve(1j * w * np.eye(4) - A, B)
+
+
+def resonance(c1, h=None, ws=None):
+    """(w_res, kcrit) with an optional feedback high-pass of corner h (system units)."""
+    if ws is None:
+        ws = np.logspace(-1, 1.5, 6000)
+    L = np.array([stages(c1, w)[3] * ((1j * w / (1j * w + h)) if h else 1.0) for w in ws])
+    ph = np.unwrap(np.angle(L))
+    i = int(np.argmin(abs(ph + np.pi)))
+    # refine by bisection on the phase between neighbours
+    lo, hi = ws[max(i - 1, 0)], ws[min(i + 1, len(ws) - 1)]
+    def phase(w):
+        v = stages(c1, w)[3] * ((1j * w / (1j * w + h)) if h else 1.0)
+        return np.angle(v)
+    for _ in range(60):
+        m = 0.5 * (lo + hi)
+        # phase passes through +-pi; use the sign of the imaginary part
+        v = stages(c1, m)[3] * ((1j * m / (1j * m + h)) if h else 1.0)
+        vl = stages(c1, lo)[3] * ((1j * lo / (1j * lo + h)) if h else 1.0)
+        if np.sign(v.imag) == np.sign(vl.imag):
+            lo = m
+        else:
+            hi = m
+    w = 0.5 * (lo + hi)
+    v = stages(c1, w)[3] * ((1j * w / (1j * w + h)) if h else 1.0)
+    return w, 1.0 / abs(v)
+
+
+def polys(c1):
+    """Coefficient vectors (s^0..s^4) of D(s) and of the numerators of y1..y4 (D * Y_i / U)."""
+    A, B = matA(c1)
+    D = np.poly(A)[::-1]                       # det(sI - A), ascending powers
+    pts = np.array([0.3, 0.7, 1.3, 2.1, 3.7])
+    V = np.vander(pts, 5, increasing=True)
+    N = []
+    for i in range(4):
+        vals = [np.real(np.polyval(D[::-1], s) * np.linalg.solve(s * np.eye(4) - A, B)[i]) for s in pts]
+        N.append(np.linalg.solve(V, vals))
+    return D, N
+
+
+def tap_weights(c1):
+    D, N = polys(c1)
+    M = np.column_stack([D] + N)               # columns: u, y1, y2, y3, y4
+    bp = np.linalg.solve(M, np.array([0, 0, 1., 0, 0]))
+    hp = np.linalg.solve(M, np.array([0, 0, 0, 0, 1.]))
+    # normalise BP to 0 dB peak (no feedback)
+    ws = np.logspace(-2, 2, 4000)
+    def resp(wts, w):
+        y = stages(c1, w)
+        return wts[0] + np.dot(wts[1:], y)
+    pk = max(abs(resp(bp, w)) for w in ws)
+    bp = bp / pk
+    hp = hp / abs(resp(hp, 1e3))
+    return bp, hp
+
+
+def round1():
+    c1 = 1.8
+    W180 = 1.3775
+    print("Round 1, c1 = 1.8: r, peak / fc, kcrit")
+    for r in [1, 1.5, 2, 3, 4, 6, 8, 12, 16, 24, 32, 64, 128]:
+        h = W180 / r
+        w, k = resonance(c1, h)
+        print(" ", r, round(w / W180, 4), round(k, 3))
+    w, k = resonance(c1)
+    print("no HP: resonant frequency", w, "critical feedback", k)
+
+
+RS = np.array([4, 5, 6, 8, 10, 12, 16, 24, 32, 48, 64, 96, 128], float)
+
+
+def table():
+    rows = []
+    for c1 in np.round(np.arange(1.0, 3.0001, 0.1), 1):
+        w180, k0 = resonance(c1)
+        ks, ps = [], []
+        for r in RS:
+            w, k = resonance(c1, w180 / r)
+            ks.append(k / k0 - 1)
+            ps.append(w / w180 - 1)
+        X = np.column_stack([1 / RS, 1 / RS ** 2])
+        a, b = np.linalg.lstsq(X, np.array(ks), rcond=None)[0]
+        p, q = np.linalg.lstsq(X, np.array(ps), rcond=None)[0]
+        fit = 1 + a / RS + b / RS ** 2
+        err = max(abs(fit / (np.array(ks) + 1) - 1))
+        bp, hp = tap_weights(c1)
+        rows.append((c1, w180, k0, a, b, p, q, err, bp, hp))
+    return rows
+
+
+def main():
+    rows = table()
+    if "--cpp" in sys.argv:
+        f = lambda v: "%.6ff" % (0.0 if abs(v) < 1e-9 else v)
+        print("// Generated by scripts/ladder_calibration.py --cpp. c1 = 1.0, 1.1, ... 3.0")
+        print("constexpr int LX_N = %d;" % len(rows))
+        print("constexpr float LX_W180[LX_N] = {%s};" % ", ".join(f(r[1]) for r in rows))
+        print("constexpr float LX_KCRIT0[LX_N] = {%s};" % ", ".join(f(r[2]) for r in rows))
+        print("constexpr float LX_HPA[LX_N] = {%s};" % ", ".join(f(r[3]) for r in rows))
+        print("constexpr float LX_HPB[LX_N] = {%s};" % ", ".join(f(r[4]) for r in rows))
+        # BP weights are g(c1) * (0, 0, 1, -4, 5); HP weights have the closed form
+        # (1, -(1 + 6/c1), 1 + 26/c1, -48/c1, 42/c1). Both checked here.
+        for r in rows:
+            c1, bp, hp = r[0], r[8], r[9]
+            assert np.allclose(bp, bp[2] * np.array([0, 0, 1, -4, 5]), atol=1e-6 * abs(bp[2]))
+            assert np.allclose(hp, [1, -(1 + 6 / c1), 1 + 26 / c1, -48 / c1, 42 / c1], rtol=1e-4)
+        print("constexpr float LX_BPG[LX_N] = {%s};" % ", ".join(f(r[8][2]) for r in rows))
+        return
+    round1()
+    print("\nRound 2 tables: c1, w180, kcrit0, a, b (kcrit fit), max fit error, p, q (peak shift fit)")
+    for c1, w180, k0, a, b, p, q, err, bp, hp in rows:
+        print("  %.1f  %.4f  %.3f  %.3f  %.3f  %.2f%%  %.3f  %.3f" % (c1, w180, k0, a, b, err * 100, p, q))
+    print("\nOutput taps (u, y1, y2, y3, y4):")
+    for c1, *_, bp, hp in rows:
+        print("  %.1f  BP %s  HP %s" % (c1, np.array2string(bp, precision=4), np.array2string(hp, precision=4)))
+    # stock check against round 1
+    r = [x for x in rows if abs(x[0] - 1.8) < 1e-6][0]
+    print("\nStock c1 1.8: w180 %.4f (round 1 1.3775), kcrit0 %.3f (17.03)" % (r[1], r[2]))
+    worst = max(abs((1 + r[3] / x + r[4] / x ** 2) / (1 + 1.412 / x + 0.576 / x ** 2) - 1) for x in RS)
+    print("  high-pass correction vs round 1 fit, r = 4..128: worst %.2f%%" % (worst * 100))
+
+
+if __name__ == "__main__":
+    main()
