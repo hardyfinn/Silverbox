@@ -35,6 +35,8 @@ Where the build departs from, or fills a gap in, `docs/BUILD-INSTRUCTIONS.md`. E
 23. **Lettering** is DejaVu Sans Bold condensed to 86% and converted to paths, as in the Serge plugin.
 24. **Keyboard** labels: the upper C is `HI C`.
 
+25a. **Panel colour.** Hardy found the brushed-silver panels dirty-looking and chose flat "clean silver" (2026-11-15): light silver `#e3e5e7`, charcoal bands, no texture. `scripts/mock_themes.py` renders the alternatives that were offered.
+
 ## Build
 
 25. Only the **Apple silicon Mac** plugin is built in CI (Hardy's request, 2026-11-15). The model tests run on Linux.

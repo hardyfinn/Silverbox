@@ -26,13 +26,13 @@ if "--font" in sys.argv:
     FONT = sys.argv[sys.argv.index("--font") + 1]
 
 # ---------------------------------------------------------------- look ------
-GROUND = "#cfd2d4"
-BAND = "#141414"
-INK = "#1b1b1b"
-SILVER = "#d9dcde"
-OUTBOX = "#202224"
+GROUND = "#e3e5e7"
+BAND = "#1a1b1d"
+INK = "#16171a"
+SILVER = "#eceef0"
+OUTBOX = "#1a1b1d"
 TITLE = SILVER      # title and brand lettering on the bands
-TEXTURE = True      # brushed hairlines
+TEXTURE = False     # brushed hairlines
 RULE = None         # colour of a thin rule under the title band, or None
 H = 128.5
 HP = 5.08
@@ -275,7 +275,7 @@ class Panel:
         if self.display:
             x0, y0, x1, y1 = self.display
             g.append(f'<rect x="{x0 - 0.8:.2f}" y="{y0 - 0.8:.2f}" width="{x1 - x0 + 1.6:.2f}" height="{y1 - y0 + 1.6:.2f}" rx="1.2" fill="#2a2c2e"/>')
-            g.append(f'<rect x="{x0:.2f}" y="{y0:.2f}" width="{x1 - x0:.2f}" height="{y1 - y0:.2f}" rx="0.6" fill="#10130f"/>')
+            g.append(f'<rect x="{x0:.2f}" y="{y0:.2f}" width="{x1 - x0:.2f}" height="{y1 - y0:.2f}" rx="0.6" fill="#0d0f0d"/>')
         for (lx0, ly0, lx1, ly1) in self.links:
             g.append(f'<line x1="{lx0:.2f}" y1="{ly0:.2f}" x2="{lx1:.2f}" y2="{ly1:.2f}" stroke="{INK}" stroke-width="0.3"/>')
         for it in self.items:
