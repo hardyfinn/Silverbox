@@ -31,6 +31,9 @@ BAND = "#141414"
 INK = "#1b1b1b"
 SILVER = "#d9dcde"
 OUTBOX = "#202224"
+TITLE = SILVER      # title and brand lettering on the bands
+TEXTURE = True      # brushed hairlines
+RULE = None         # colour of a thin rule under the title band, or None
 H = 128.5
 HP = 5.08
 TOP_BAND = 11.5
@@ -252,16 +255,20 @@ class Panel:
             y = rnd.uniform(TOP_BAND, BOTTOM_BAND)
             x0 = rnd.uniform(-5, w)
             hair.append(f'<line x1="{x0:.2f}" y1="{y:.2f}" x2="{x0 + rnd.uniform(5, 30):.2f}" y2="{y:.2f}"/>')
-        o.append(f'<g stroke="#ffffff" stroke-opacity="0.18" stroke-width="0.08">{"".join(hair[::2])}</g>')
-        o.append(f'<g stroke="#000000" stroke-opacity="0.05" stroke-width="0.08">{"".join(hair[1::2])}</g>')
+        if TEXTURE:
+            o.append(f'<g stroke="#ffffff" stroke-opacity="0.18" stroke-width="0.08">{"".join(hair[::2])}</g>')
+            o.append(f'<g stroke="#000000" stroke-opacity="0.05" stroke-width="0.08">{"".join(hair[1::2])}</g>')
         o.append(f'<rect x="0" y="0" width="{w:.2f}" height="{TOP_BAND}" fill="{BAND}"/>')
         o.append(f'<rect x="0" y="{BOTTOM_BAND}" width="{w:.2f}" height="{H - BOTTOM_BAND:.2f}" fill="{BAND}"/>')
-        ink, silver = [], []
+        if RULE:
+            o.append(f'<rect x="0" y="{TOP_BAND - 0.5}" width="{w:.2f}" height="0.5" fill="{RULE}"/>')
+            o.append(f'<rect x="0" y="{BOTTOM_BAND}" width="{w:.2f}" height="0.5" fill="{RULE}"/>')
+        ink, silver, title = [], [], []
         cap = TITLE_CAP
         while text_width(self.title, cap) > w - 22:
             cap -= 0.1
-        silver.append(text_path(self.title, w / 2, TOP_BAND / 2 + cap / 2, cap))
-        silver.append(text_path("SILVERBOX", w / 2, BOTTOM_BAND + (H - BOTTOM_BAND) / 2 + SMALL_CAP / 2, SMALL_CAP))
+        title.append(text_path(self.title, w / 2, TOP_BAND / 2 + cap / 2, cap))
+        title.append(text_path("SILVERBOX", w / 2, BOTTOM_BAND + (H - BOTTOM_BAND) / 2 + SMALL_CAP / 2, SMALL_CAP))
         g = []
         for (x0, y0, x1, y1) in self.outboxes:
             g.append(f'<rect x="{x0:.2f}" y="{y0:.2f}" width="{x1 - x0:.2f}" height="{y1 - y0:.2f}" rx="1.4" fill="{OUTBOX}"/>')
@@ -289,6 +296,7 @@ class Panel:
         o.append("".join(g))
         o.append(f'<path fill="{INK}" d="{" ".join(ink)}"/>')
         o.append(f'<path fill="{SILVER}" d="{" ".join(silver)}"/>')
+        o.append(f'<path fill="{TITLE}" d="{" ".join(title)}"/>')
         o.append("</svg>")
         return "\n".join(o)
 
