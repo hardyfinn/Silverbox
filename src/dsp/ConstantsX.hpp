@@ -8,10 +8,15 @@ namespace sb {
 // ---- SBF cutoff law (round 2 spec §3.3). Same calibration as SBV after 2.1.0. ----
 constexpr float CUT_LO_X = 125.f;         // Hz at CUT OFF FREQ = 0
 constexpr float CUT_HI_X = 2000.f;        // Hz at CUT OFF FREQ = 1 (500 Hz at half way, TM3 calibration)
-constexpr float FILTER_OUT_LEVEL = 1.6f;  // FILTER OUT volts per unit tap, so a held note matches OUT (est., test)
-constexpr float CLICK_LEVEL = 0.45f;      // V of VCA-edge leak at CLICK = 1 (est., spec 0.3 to 0.6 V)
+constexpr float FILTER_OUT_LEVEL = OUT_LEVEL;   // FILTER OUT volts per unit tap: matches OUT for a held note
+constexpr float CLICK_LEVEL = 0.24f;      // scale of the VCA-edge leak: about 0.45 V peak at CLICK = 1 (est., spec 0.3 to 0.6 V)
 constexpr float CLICK_LP = 2500.f;        // Hz, band limit of the click (est.)
 constexpr float TAP_XFADE = 0.005f;       // s, LP/BP/HP output crossfade
+// Output level of the band-pass and high-pass taps relative to the ladder's own 0 dB normalisation,
+// so a default saw note through SBF peaks at a similar level in all three modes (the low-pass tap
+// sits about 20 dB down at a typical resonance, which OUT_LEVEL makes up). (est., by ear and test)
+constexpr float BP_LEVEL = 0.12f;
+constexpr float HP_LEVEL = 0.15f;
 constexpr float TRIG_GATE_DEFAULT = 0.125f;   // s, internal gate for TRIG alone with GATE TRIM OFF
 constexpr float ACC_STRENGTH_MIN = 0.2f;  // accent level law: strength = clamp(V / 5, 0.2, 1)
 
