@@ -1,14 +1,17 @@
 # Silverbox for VCV Rack
 
-Silverbox is a model of the 1981 TB-303 bass line synthesizer, split into three modules. The modules can be used together or with anything else in your rack.
+Silverbox is a model of the 1981 TB-303 bass line synthesizer, in six modules. The first three are the 303 itself; the other three (added in 2.1.0) open it up. The modules can be used together or with anything else in your rack.
 
 | Module | What it is |
 |---|---|
 | **SBV Silverbox Voice** (16 HP) | The 303 voice: oscillator, diode ladder filter, envelopes, accent, slide. It has two additions, BASS COMP and KEY TRACK |
 | **SBS Silverbox Sequencer** (32 HP) | The 303 sequencer, with separate pitch and time programming, 64 patterns, 7 tracks and tools for generating material |
 | **SBX Silverbox Extended** (12 HP) | An expander that sits directly to the right of SBV and adds extended controls, each with a CV input |
+| **SBO Silverbox Oscillator** (20 HP) | The 303 oscillator on its own, with pulse width, PWM, a sub-octave, a wavefolder, sync, FM and its board trimmers |
+| **SBF Silverbox Filter** (28 HP) | The rest of the voice: diode ladder (low-pass, band-pass or high-pass), both envelopes, accent and VCA, with the board's fixed values as knobs |
+| **SBT Silverbox Tuner** (8 HP) | Scala microtuning for any 1V/OCT signal, eight scale slots, polyphonic |
 
-With its knobs at default and no SBX attached, SBV behaves like a stock 303. Every addition leaves the stock sound alone until you use it.
+With its knobs at default and no SBX attached, SBV behaves like a stock 303. Every addition leaves the stock sound alone until you use it. SBO into SBF with everything at default sounds exactly like SBV.
 
 ![Panels](images/panels.png)
 
@@ -21,7 +24,7 @@ With its knobs at default and no SBX attached, SBV behaves like a stock 303. Eve
 | Control | What it does |
 |---|---|
 | TUNING | ±12 semitones, continuous |
-| CUT OFF FREQ | Where the filter's resonant peak sits, 300 Hz to 5 kHz |
+| CUT OFF FREQ | Where the filter's resonant peak sits, 125 Hz to 2 kHz, with 500 Hz at half way (the service-note calibration) |
 | RESONANCE | Filter feedback. Also sets how the accent sweep behaves (see below) |
 | ENV MOD | How far the filter envelope opens the filter. Turning it up also lowers the resting cutoff, as on the original |
 | DECAY | Filter envelope decay, 0.2 s to 2 s. Accented notes always use the shortest decay |
@@ -43,6 +46,8 @@ With its knobs at default and no SBX attached, SBV behaves like a stock 303. Eve
 | OUT | Audio, about ±5 V on normal notes |
 
 The GATE, ACCENT and SLIDE lights show those inputs.
+
+> **Changed in 2.1.0.** CUT OFF FREQ now follows the 303 service notes: half way puts the resonant peak at about 500 Hz. Before 2.1.0 the range was 300 Hz to 5 kHz, which was too bright. **Patches saved before 2.1.0 will sound darker; turn CUT OFF FREQ up by about a third of its travel to get the old sound.** Nothing else about SBV changed.
 
 ### How the voice behaves
 
@@ -129,6 +134,18 @@ Changing mode never stops playback, so you can edit while it runs.
 
 The **context menu** also has Copy pattern, Paste pattern, Copy to next empty pattern, Clear all memory, and Export or Import memory as a JSON file. All 64 patterns and 7 tracks are saved with your patch.
 
+### Tuning (Scala microtuning, new in 2.1.0)
+
+The context menu's **Tuning** submenu retunes SBS's 1V/OCT output:
+
+- **Load Scala scale (.scl)…** and **Load keyboard mapping (.kbm)…** read the standard Scala files. A file that cannot be read shows FILE ERROR on the display and changes nothing.
+- **Built-in scales**: 12-tone equal, Just intonation, Pythagorean, Quarter-comma meantone, Werckmeister III, Harmonic series 8 to 16, 7-, 19- and 24-tone equal, Bohlen-Pierce, Wendy Carlos alpha, Slendro and Pelog.
+- **Key mapping**: *12 keys per period* (each octave of keys covers one period of the scale; scales with fewer than 12 notes share keys) or *One key per degree* (every key is the next scale step).
+- **Root**: which key plays the scale's 1/1.
+- **Reset to 12-tone equal**.
+
+The keys become scale degrees, UP and DOWN move by one period, and the key and track transposes move by degrees. The **TRANSPOSE jack stays an exact pitch shift**, added after the scale. The scale is saved with the patch (not the file name), and its name appears in the display header after the tempo. With 12-tone equal, SBS behaves exactly as before.
+
 ---
 
 ## SBX Silverbox Extended
@@ -146,6 +163,115 @@ Place SBX directly to the right of SBV, and its LINKED light comes on. At its de
 | OVERDRIVE | 0 to 24 dB (0) | Drives the filter input harder |
 | DECAY RANGE | STOCK / WIDE | WIDE makes SBV's DECAY run from 30 ms to 3 s |
 | MUFFLER | OFF / SOFT / HARD | A soft clipper on the output |
+
+---
+
+## SBO Silverbox Oscillator
+
+The 303 oscillator with the lid off. With every control at its default, SAW and SQUARE are exactly SBV's waveforms. Patch the sequencer's 1V/OCT and SLIDE here, and OUT into SBF IN.
+
+| Control | Range (default) | What it does |
+|---|---|---|
+| TUNING | ±12 semitones (0) | |
+| PULSE WIDTH | 5% to 95% (46.5%, stock) | Width of the square. It has a small detent at the stock value. The square is still shaped from the saw, so it keeps its slanted 303 edges at every width |
+| WAVE MIX | saw to square (saw) | Crossfade between the two |
+| SUB | 0 to 100% (0) | How much of the sub-octave square goes into OUT |
+| FOLD | 0 to 100% (0) | Wavefolder after the mix. At 0 the signal passes untouched |
+| SYMMETRY | −100% to +100% (0) | Bias into the folder: folds one side more than the other and adds even harmonics. Does nothing while FOLD is 0 |
+| PWM | −100% to +100% (0) | Depth of the PWM input: ±5 V at full depth moves the width ±45% |
+| FOLD CV | −100% to +100% (0) | Depth of the FOLD input: ±5 V at full depth sweeps the whole range |
+| FM | 0 to 100% (0) | Linear FM depth: ±5 V at full depth swings the frequency between 0 and twice the pitch |
+| SLIDE TIME | 2 ms to 500 ms (60 ms) | As SBX |
+| DRIFT | 0 to 100% (0) | A slow random wander of up to about ±24 cents |
+
+**TRIM** (the board trimmers and two fixed values):
+
+| Control | Range (default) | What it does |
+|---|---|---|
+| TUNE | ±100 cents (0) | Board trimmer TM4 |
+| WIDTH | 0.90 to 1.10 (1.00) | Board trimmer TM5: the volts-per-octave scale, pivoting at 0 V. 1.05 stretches every octave by 5% |
+| SAW CURVE | 0 to 3 (0.6, stock) | Curvature of the capacitor-charge saw. 0 is a straight ramp |
+| SQUARE SHAPE | 1.5 to 20 (6, stock) | Gain of the transistor that makes the square: low values give a rounded, soft square, high values a hard one |
+
+| Jack | |
+|---|---|
+| 1V/OCT, SLIDE | As SBV: SLIDE high at a pitch change glides instead of jumping |
+| PWM, MIX CV, FOLD, FM | CV for those controls. MIX CV: ±5 V = ±1 |
+| SYNC | Hard sync: the cycle restarts when this input rises through 0 V |
+| FOLD IN | Replaces the oscillator mix going into the folder, so the folder works on anything |
+| SAW, SQUARE, SUB | The raw waveforms, about ±5 V |
+| OUT | Saw/square mix plus sub, through the folder, at the level SBF expects (into SBF it matches SBV) |
+
+---
+
+## SBF Silverbox Filter
+
+The back half of the voice: input → diode ladder → VCA, with the filter envelope, the volume envelope and the accent circuit. Patch GATE and ACCENT here. With everything at default and SBO's OUT in IN, it sounds exactly like SBV.
+
+| Control | Range (default) | What it does |
+|---|---|---|
+| CUT OFF FREQ, RESONANCE, ENV MOD, DECAY, ACCENT | as SBV | Each has a CV jack under it. CUTOFF CV: ±5 V = ±3 octaves. The others: ±5 V adds ±100% |
+| MODE | LP / BP / HP (LP) | Which output of the ladder you hear. The resonance, accent and saturation are the same in every mode; only the tap changes, crossfaded over 5 ms |
+| DRIVE | 0 to 24 dB (0) | Level into the ladder |
+| BASS COMP | 0 to 100% (0) | As SBV, low-pass only |
+| KEY TRACK | 0 to 100% (0) | Cutoff follows the 1V/OCT input, pivoting at 1 V |
+| FM | 0 to 100% (0) | Depth of the FM input: ±5 V at full depth = ±2 octaves, at audio rate |
+| VCA DECAY | 16 ms to 6 s (3.5 s, stock) | How long a held note takes to fade |
+| ACCENT DECAY | 30 ms to 3 s (0.2 s, stock) | Filter decay on accented notes |
+
+**TRIM** (board trimmers, and fixed parts made variable):
+
+| Control | Range (default) | What it does |
+|---|---|---|
+| CUTOFF TRIM | ±2 octaves (0) | Board trimmer TM3. +1.3 octaves gives the brighter range SBV had before 2.1.0 |
+| RES TRIM | 0.5 to 1.1 (1.0) | Scales the feedback at full RESONANCE. Above about 1.005 the filter self-oscillates |
+| GATE TRIM | 20 ms to 2 s, OFF (OFF) | Shortens notes: the VCA closes when the gate falls or when this time has passed, whichever is first. Fully clockwise is OFF |
+| BASS | 20 Hz to 400 Hz (150 Hz) | Corner of the high-pass in the resonance feedback. Lower keeps resonance strong at low cutoffs |
+| POLES | 1.0 to 3.0 (1.8) | Ratio of the bottom ladder capacitor. Its effect is subtle: below 1.8 the passband just under the cutoff gets slightly thinner |
+| ENV BIAS | 0 to 2 octaves (1.2) | How far full ENV MOD lowers the resting cutoff |
+| ENV ATTACK | 3 ms to 300 ms (3 ms) | Filter envelope attack. Longer gives swelling "wow" sweeps |
+| RELEASE | 4 ms to 1 s (4 ms) | How fast the VCA closes after the gate. Longer lets notes ring and overlap |
+| ACCENT VCA | 0 to 2 (1) | How much an accent raises the volume, separately from how much it opens the filter |
+| SWEEP | GANGED / FREE (GANGED) | GANGED: the accent sweep's shape follows RESONANCE, as on the board. FREE: it follows SWEEP SHAPE instead |
+| SWEEP SHAPE | 0 to 100% (50%) | The accent sweep's shape when SWEEP is FREE: low is sharp, high is a slow swell |
+| CLICK | 0 to 100% (0) | Adds the thump of an untrimmed VCA at each note start (up to about 0.45 V) |
+
+| Jack | |
+|---|---|
+| IN | Audio, ±5 V nominal |
+| GATE | As SBV |
+| TRIG | A rising edge restarts both envelopes, even while GATE is high. With GATE unpatched, TRIG alone plays notes (each lasts GATE TRIM, or 125 ms when it is OFF) |
+| ACCENT | **A level**: 1 V and above is an accent, and its strength is the voltage over 5 V (at least 20%). 5 V or 10 V gates give full accents, so any gate sequencer behaves as with SBV, and a velocity CV gives half accents |
+| 1V/OCT | For KEY TRACK only |
+| FM | Audio-rate cutoff modulation |
+| ENV IN | 0 to 10 V replaces the filter envelope while patched |
+| OUT | Audio, after the VCA |
+| FILTER OUT | The filter before the VCA, at the same level as OUT on a held note |
+| FILTER ENV, ACCENT SWEEP, VCA ENV | The envelopes, 0 to 10 V |
+
+**Notes.** A slide holds the gate across notes, so a short GATE TRIM cuts the second note of a slide; that is expected. With RES TRIM up and nothing in IN, the filter is a sine oscillator of about 1.4 V: open the VCA with a held gate (or use FILTER OUT) and play it with KEY TRACK at 100%.
+
+---
+
+## SBT Silverbox Tuner
+
+A 1V/OCT retuner that loads Scala files. Put it between any sequencer's 1V/OCT and any oscillator.
+
+| Control | What it does |
+|---|---|
+| Display | Slot number, scale name, number of notes and the mapping mode |
+| SCALE | Slot 1 to 8. SCALE CV adds (0 to 10 V = 0 to 7 slots, wrapping) |
+| ROOT | Which key plays the scale's 1/1 (C to B) |
+| FINE | ±100 cents on everything |
+| LOAD | Opens a .scl file into the current slot |
+| ACTIVE | Lit when the current slot is not 12-tone equal |
+| 1V/OCT IN / OUT | Polyphonic, up to 16 channels, each mapped separately |
+
+The context menu works on the current slot: load a .scl or .kbm, clear the mapping, built-in scales, key mapping (*12 keys per period* or *One key per degree*), reset the slot, reset all slots. Default slots: 1 12-tone equal, 2 Just, 3 Pythagorean, 4 Meantone, 5 7-equal, 6 19-equal, 7 Bohlen-Pierce, 8 Harmonic 8 to 16. All eight scales are saved in the patch.
+
+Whole semitones land exactly on scale pitches. Anything in between (a slide or a bend) is interpolated between neighbouring scale pitches, so slides pass through smoothly. A .kbm file replaces the key mapping: it maps keys relative to its middle note (MIDI 60 = 0 V), keys it leaves unmapped hold the previous pitch, and its reference note and frequency set the absolute pitch.
+
+**SBS's Tuning menu or SBT?** Both use the same scales and mapping. Use SBS's own menu for a single 303 line; it keeps the TRANSPOSE jack an exact shift. Use SBT for other sequencers, to switch scales by CV, and for polyphony. Through SBT, SBS's TRANSPOSE jack moves by scale degrees. Do not use both at once.
 
 ---
 
@@ -202,6 +328,56 @@ Use VCV SEQ-3 (or any gate sequencer):
 - Set GATE LENGTH to 95% so the slides stay connected, and MUTATE to 5%.
 - This works well alongside the Autechre-style set in this project.
 
+### 9. The open voice
+- SBS 1V/OCT → SBO 1V/OCT, SBS SLIDE → SBO SLIDE, SBO OUT → SBF IN, SBS GATE → SBF GATE, SBS ACCENT → SBF ACCENT, SBF OUT → Audio.
+- Everything at default: this is SBV. Now try the trimmers one at a time:
+  - **CUTOFF TRIM** moves the whole cutoff range; **ENV BIAS** sets how dark the resting filter gets as ENV MOD rises.
+  - **BASS** down to 40 Hz keeps the resonance strong on low cutoffs; **RES TRIM** above 1.0 makes the resonance ring on and sing.
+  - **ENV ATTACK** at 100 ms turns each note into a swell; **RELEASE** at 300 ms lets notes ring into each other.
+  - **GATE TRIM** at 60 ms makes everything staccato; **CLICK** gives the notes a thump.
+  - **TUNE**, **WIDTH**, **SAW CURVE** and **SQUARE SHAPE** on SBO change the raw tone: a straighter saw is brighter, a soft square is hollow.
+
+### 10. PWM acid
+- As recipe 9. SBO WAVE MIX at square. A slow LFO (0.3 Hz, ±5 V) → SBO PWM, PWM knob at 50%.
+- SBF RESONANCE 85%. The width sweep moves the harmonics under the resonance, so the filter sings different partials as it opens.
+
+### 11. Folded acid
+- As recipe 9. SBF FILTER ENV → SBO FOLD, FOLD CV at 40%, FOLD at 10%, SYMMETRY at +30%.
+- Each note's filter envelope also folds the wave, so accents (which push the envelope) fold hardest. SYMMETRY off-centre adds a hollow, octave-up edge.
+
+### 12. Band-pass and high-pass lines
+- As recipe 9, SBF MODE BP: a nasal, vocal line. HP: a thin, buzzing top line.
+- **Two layers**: run SBS into SBV (low-pass bass) and also into SBO + SBF (MODE HP, CUTOFF TRIM +1 octave). Mix both. The bass stays round while the top layer bites.
+
+### 13. Self-oscillating filter as a voice
+- Nothing in SBF IN. RES TRIM fully up, RESONANCE 100%, ENV MOD 0, KEY TRACK 100%.
+- SBS 1V/OCT → SBF 1V/OCT (KEY TRACK at 100% follows it at one octave per volt); SBS GATE → SBF GATE. CUTOFF CV is free for vibrato from an LFO.
+- Use FILTER OUT for a constant sine, or OUT for the 303's envelope shape. Tune it with CUT OFF FREQ and CUTOFF TRIM.
+
+### 14. Half accents
+- A random or velocity CV (0 to 5 V) → SBF ACCENT, instead of a gate. Low voltages give gentle accents, 5 V and above full ones.
+- A sample-and-hold of noise, clocked by SBS CLOCK, gives a line where every note is accented a little differently.
+
+### 15. Sub and BASS
+Three ways to keep the low end under heavy resonance:
+- **SUB** (SBO) adds a square an octave down: more weight, below the filter's action.
+- **BASS** (SBF) lowers the feedback high-pass: the resonance stays strong on low notes, but the bass under it still thins.
+- **BASS COMP** (SBF, low-pass) adds the lost low end back: the most like an un-resonant filter underneath.
+Try all three on a line with RESONANCE at 90%.
+
+### 16. Wrong tracking
+- SBO WIDTH at 1.04: every octave is 4% wide, so a line stretches as it climbs. Pleasantly wrong on octave jumps.
+- The principled version: SBS → SBT (a stretched or non-octave scale such as Wendy Carlos alpha) → SBO.
+
+### 17. Microtonal acid
+- SBS 1V/OCT → SBT 1V/OCT IN → SBV 1V/OCT. SBT SCALE at slot 2 (Just): thirds and sevenths settle into pure intervals.
+- Slot 7 (Bohlen-Pierce, one key per degree): each key is the next step of a 13-step scale that repeats at the twelfth, not the octave.
+- Switching per pattern: a stepped CV from another sequencer, clocked by SBS END, into SBT SCALE CV changes scale at each loop.
+
+### 18. SBF as a processor
+- A drum loop or another oscillator → SBF IN. A clock divider's output → SBF TRIG, GATE unpatched, GATE TRIM at 150 ms.
+- Each trigger plays a 303 note shape on the input: filter sweep, VCA and (with a gate into ACCENT) accent.
+
 ---
 
 ## What is modelled
@@ -212,6 +388,8 @@ Use VCV SEQ-3 (or any gate sequencer):
 - **Accent:** a sweep capacitor driven by the filter envelope on accented notes. RESONANCE sets how fast it charges and discharges, as the original's dual-gang resonance pot did. Accents also raise the volume.
 - **Slide:** a fixed-time glide with no envelope retrigger.
 - **Sequencer:** separate pitch and time lists, ties, rests, 24 PPQN timing, 50% gates, triplets, 64 patterns in four groups of 8 × A/B, and 7 tracks.
+
+- **Round 2 (SBO, SBF, SBT):** the cutoff calibration (500 Hz ± 100 Hz at half way) and the trimmers TM3 (cutoff), TM4 (tune) and TM5 (width) come from the service notes. The other TRIM controls (GATE TRIM, RES TRIM, BASS, POLES, ENV BIAS, ENV ATTACK, RELEASE, ACCENT VCA, SWEEP, SQUARE SHAPE, SAW CURVE) are **not original trimmers**: they are fixed parts or ganged pots of the circuit made variable for this plugin. The folder, drift, sub level, accent level law and band-pass/high-pass levels are this build's own design.
 
 Every constant is an estimate made from published descriptions rather than a measurement of a real unit. They are listed in `src/dsp/Constants303.hpp`, and `docs/DECISIONS.md` explains each one that was changed.
 

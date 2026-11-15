@@ -10,7 +10,7 @@ ROOT = mp.ROOT
 S = 5  # px per mm
 out = ['<html><body style="background:#555;margin:0;display:flex;gap:8px;padding:8px;align-items:flex-start">']
 for p in mp.P:
-    out.append(f'<div style="position:relative;width:{p.w*S}px;height:{mp.H*S}px">')
+    out.append(f'<div style="flex-shrink:0;position:relative;width:{p.w*S}px;height:{mp.H*S}px">')
     out.append(f'<img src="file://{ROOT}/res/{p.slug}.svg" style="position:absolute;left:0;top:0;width:{p.w*S}px;height:{mp.H*S}px">')
     for it in p.items:
         k, x, y = it["kind"], it["x"], it["y"]
