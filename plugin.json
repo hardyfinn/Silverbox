@@ -1,0 +1,35 @@
+{
+  "slug": "Silverbox",
+  "name": "Silverbox",
+  "version": "2.0.0",
+  "license": "GPL-3.0-or-later",
+  "brand": "Silverbox",
+  "author": "Hardy",
+  "authorEmail": "",
+  "authorUrl": "",
+  "pluginUrl": "https://github.com/hardyfinn/silverbox",
+  "manualUrl": "https://github.com/hardyfinn/silverbox/blob/main/docs/MANUAL.md",
+  "sourceUrl": "https://github.com/hardyfinn/silverbox",
+  "donateUrl": "",
+  "changelogUrl": "",
+  "modules": [
+    {
+      "slug": "SBV",
+      "name": "SBV Silverbox Voice",
+      "description": "303-style acid bass voice: curved saw and shaped square, diode ladder, accent sweep, slide, bass comp and key track.",
+      "tags": ["Synth voice", "Filter", "Envelope generator"]
+    },
+    {
+      "slug": "SBS",
+      "name": "SBS Silverbox Sequencer",
+      "description": "303-style acid sequencer with separate pitch and time programming, 64 patterns, 7 tracks, scramble and mutate.",
+      "tags": ["Sequencer", "Clock generator", "Random"]
+    },
+    {
+      "slug": "SBX",
+      "name": "SBX Silverbox Extended",
+      "description": "Expander for SBV with extended 303 mods: VEG decay, accent decay, slide time, soft attack, sweep speed, filter FM, overdrive, muffler.",
+      "tags": ["Expander"]
+    }
+  ]
+}
