@@ -6,3 +6,4 @@ plugin.dll
 tests/out/
 *.o
 *.d
+__pycache__/
