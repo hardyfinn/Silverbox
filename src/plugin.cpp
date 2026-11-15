@@ -7,4 +7,7 @@ void init(Plugin* p) {
 	p->addModel(modelSBV);
 	p->addModel(modelSBS);
 	p->addModel(modelSBX);
+	p->addModel(modelSBO);
+	p->addModel(modelSBF);
+	p->addModel(modelSBT);
 }

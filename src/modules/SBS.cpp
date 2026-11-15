@@ -1,6 +1,8 @@
 // SBS Silverbox Sequencer (spec §6).
 #include "../plugin.hpp"
 #include "../seq/SeqEngine.hpp"
+#include "../tuning/Tuner.hpp"
+#include "../widgets/TuningMenu.hpp"
 #include "../generated/Layout.hpp"
 #include <atomic>
 #include <osdialog.h>
@@ -46,8 +48,9 @@ struct Snapshot {
 	int liveTranspose = 0;
 	bool running = false, ext = false;
 	float bpm = 120.f;
-	int message = 0;   // 1 = copied to next empty, 2 = no empty pattern
+	int message = 0;   // 1 = copied to next empty, 2 = no empty pattern, 3 = file error
 	int messageArg = 0;
+	char tuning[24] = {0};   // scale name when a tuning is loaded
 };
 
 struct PatternQuantity : ParamQuantity {
@@ -96,6 +99,13 @@ struct SBS : Module {
 	float messageT = 0.f;
 	float blink = 0.f;
 	std::atomic<json_t*> pendingImport{nullptr};
+	// Tuning (round 2 §1a). The UI thread swaps in a new scale; the audio thread only reads it.
+	sb::ScaleSlot tuning;
+	std::atomic<int> tuningRoot{0};
+	std::atomic<bool> fileError{false};
+	sb::SbsTuning tuneStep;
+	bool prevClockOut = false;
+	float prevRawVoct = 0.f;
 
 	SBS() {
 		config(PARAMS_LEN, INPUTS_LEN, OUTPUTS_LEN, LIGHTS_LEN);
@@ -272,7 +282,16 @@ struct SBS : Module {
 		} else { scrambleHeld = 0.f; scrambleFired = false; }
 
 		sb::SeqOutputs o = eng.process(dt);
-		outputs[VOCT_OUTPUT].setVoltage(o.voct);
+		{
+			// Tuning: map the engine's note; the TRANSPOSE jack stays an exact shift (latched at a NOTE start)
+			const sb::Scale& sc = tuning.get();
+			bool noteStart = (o.clock && !prevClockOut && eng.cur.kind == sb::NOTE) || (!eng.running && o.voct != prevRawVoct);
+			prevClockOut = o.clock;
+			prevRawVoct = o.voct;
+			float v = tuneStep.process(&sc, tuningRoot.load(std::memory_order_relaxed), o.voct, eng.running ? k.transposeIn : 0, noteStart);
+			outputs[VOCT_OUTPUT].setVoltage(v);
+		}
+		if (fileError.exchange(false)) { message = 3; messageT = 2.f; }
 		outputs[GATE_OUTPUT].setVoltage(o.gate ? 10.f : 0.f);
 		outputs[ACCENT_OUTPUT].setVoltage(o.accent ? 10.f : 0.f);
 		outputs[SLIDE_OUTPUT].setVoltage(o.slide ? 10.f : 0.f);
@@ -322,6 +341,11 @@ struct SBS : Module {
 			s.bpm = k.bpm;
 			s.message = message;
 			s.messageArg = messageArg;
+			{
+				const sb::Scale& sc = tuning.get();
+				std::string tn = sc.isEqual12() ? std::string() : sc.name;
+				std::snprintf(s.tuning, sizeof(s.tuning), "%s", tn.substr(0, 14).c_str());
+			}
 			snapIdx.store(w, std::memory_order_release);
 		}
 	}
@@ -377,6 +401,13 @@ struct SBS : Module {
 		json_object_set_new(root, "clockMode", json_integer(clockMode));
 		json_object_set_new(root, "runIsGate", json_boolean(runIsGate));
 		json_object_set_new(root, "running", json_boolean(eng.running));
+		const sb::Scale& sc = tuning.get();
+		if (!sc.isEqual12()) {   // absent when 12-tone equal, so older patches load unchanged
+			json_t* t = json_object();
+			json_object_set_new(t, "scale", json_string(sb::serializeScale(sc).c_str()));
+			json_object_set_new(t, "root", json_integer(tuningRoot.load()));
+			json_object_set_new(root, "tuning", t);
+		}
 		return root;
 	}
 	void dataFromJson(json_t* root) override {
@@ -385,6 +416,15 @@ struct SBS : Module {
 		if ((j = json_object_get(root, "clockMode"))) clockMode = clamp((int) json_integer_value(j), 0, 2);
 		if ((j = json_object_get(root, "runIsGate"))) runIsGate = json_boolean_value(j);
 		if ((j = json_object_get(root, "running"))) eng.setRunning(json_boolean_value(j));
+		sb::Scale sc = sb::equal12();
+		int rootKey = 0;
+		if (json_t* t = json_object_get(root, "tuning")) {
+			json_t* js = json_object_get(t, "scale");
+			if (js && json_is_string(js)) sb::deserializeScale(json_string_value(js), sc);
+			if ((j = json_object_get(t, "root"))) rootKey = clamp((int) json_integer_value(j), 0, 11);
+		}
+		tuning.set(sc);
+		tuningRoot = rootKey;
 	}
 };
 
@@ -443,6 +483,8 @@ struct SeqDisplay : widget::Widget {
 		if (s.liveTranspose) r = string::f("TR %+d  ", s.liveTranspose) + r;
 		if (s.message == 1) h = "COPIED TO " + sb::patternName(s.messageArg);
 		if (s.message == 2) h = "NO EMPTY PATTERN";
+		if (s.message == 3) h = "FILE ERROR";
+		if (s.tuning[0]) r = r + "  " + s.tuning;
 		nvgFontSize(vg, box.size.y * 0.14f);
 		nvgFillColor(vg, fg);
 		nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
@@ -636,6 +678,8 @@ struct SBSWidget : ModuleWidget {
 			json_t* old = m->pendingImport.exchange(root);
 			if (old) json_decref(old);
 		}));
+		menu->addChild(new MenuSeparator);
+		appendTuningMenu(menu, &m->tuning, &m->tuningRoot, &m->fileError);
 	}
 };
 

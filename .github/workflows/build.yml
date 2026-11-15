@@ -37,7 +37,7 @@ jobs:
       - name: Check for unresolved plugin symbols
         run: |
           # Anything of ours left undefined would make Rack refuse to load the plugin.
-          if nm -u plugin.dylib | c++filt | grep -E "sb::|SBV|SBS|SBX|Seq|Voice303"; then exit 1; fi
+          if nm -u plugin.dylib | c++filt | grep -E "sb::|SBV|SBS|SBX|SBO|SBF|SBT|Seq|Voice303|OscX|VoiceBackX|Tuner|Scala"; then exit 1; fi
       - uses: actions/upload-artifact@v4
         with:
           name: Silverbox-mac-arm64

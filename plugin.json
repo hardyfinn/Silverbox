@@ -1,7 +1,7 @@
 {
   "slug": "Silverbox",
   "name": "Silverbox",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "license": "GPL-3.0-or-later",
   "brand": "Silverbox",
   "author": "Hardy",
@@ -17,19 +17,58 @@
       "slug": "SBV",
       "name": "SBV Silverbox Voice",
       "description": "303-style acid bass voice: curved saw and shaped square, diode ladder, accent sweep, slide, bass comp and key track.",
-      "tags": ["Synth voice", "Filter", "Envelope generator"]
+      "tags": [
+        "Synth voice",
+        "Filter",
+        "Envelope generator"
+      ]
     },
     {
       "slug": "SBS",
       "name": "SBS Silverbox Sequencer",
       "description": "303-style acid sequencer with separate pitch and time programming, 64 patterns, 7 tracks, scramble and mutate.",
-      "tags": ["Sequencer", "Clock generator", "Random"]
+      "tags": [
+        "Sequencer",
+        "Clock generator",
+        "Random"
+      ]
     },
     {
       "slug": "SBX",
       "name": "SBX Silverbox Extended",
       "description": "Expander for SBV with extended 303 mods: VEG decay, accent decay, slide time, soft attack, sweep speed, filter FM, overdrive, muffler.",
-      "tags": ["Expander"]
+      "tags": [
+        "Expander"
+      ]
+    },
+    {
+      "slug": "SBO",
+      "name": "SBO Silverbox Oscillator",
+      "description": "303-style acid oscillator with the lid off: curved saw, pulse width and PWM, sub-octave, wavefolder, hard sync, linear FM, drift and board trimmers.",
+      "tags": [
+        "VCO",
+        "Waveshaper"
+      ]
+    },
+    {
+      "slug": "SBF",
+      "name": "SBF Silverbox Filter",
+      "description": "303-style acid filter, envelopes and VCA: diode ladder with LP/BP/HP, accent level input, gate trim and the board's fixed values as trimmers.",
+      "tags": [
+        "VCF",
+        "Envelope generator",
+        "VCA"
+      ]
+    },
+    {
+      "slug": "SBT",
+      "name": "SBT Silverbox Tuner",
+      "description": "Scala microtuning for any 1V/oct signal: eight scale slots, keyboard mappings, built-in scales, polyphonic.",
+      "tags": [
+        "Quantizer",
+        "Polyphonic",
+        "Tuner"
+      ]
     }
   ]
 }

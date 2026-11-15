@@ -103,3 +103,92 @@ inline void placeSBS(W* w, M* m) {
 }
 
 constexpr float SBS_DISPLAY_X = 6.000f, SBS_DISPLAY_Y = 14.000f, SBS_DISPLAY_W = 150.560f, SBS_DISPLAY_H = 30.000f;
+template <class M, class W>
+inline void placeSBO(W* w, M* m) {
+	w->addParam(createParamCentered<SbKnob>(mm2px(Vec(12.000f, 26.000f)), m, M::TUNING_PARAM));
+	w->addParam(createParamCentered<SbKnob>(mm2px(Vec(31.400f, 26.000f)), m, M::PW_PARAM));
+	w->addParam(createParamCentered<SbKnob>(mm2px(Vec(50.800f, 26.000f)), m, M::MIX_PARAM));
+	w->addParam(createParamCentered<SbKnob>(mm2px(Vec(70.200f, 26.000f)), m, M::SUB_PARAM));
+	w->addParam(createParamCentered<SbKnob>(mm2px(Vec(89.600f, 26.000f)), m, M::FOLD_PARAM));
+	w->addParam(createParamCentered<SbKnob>(mm2px(Vec(9.500f, 47.000f)), m, M::SYMMETRY_PARAM));
+	w->addParam(createParamCentered<SbKnobSmall>(mm2px(Vec(26.000f, 47.000f)), m, M::PWM_PARAM));
+	w->addParam(createParamCentered<SbKnobSmall>(mm2px(Vec(42.500f, 47.000f)), m, M::FOLDCV_PARAM));
+	w->addParam(createParamCentered<SbKnobSmall>(mm2px(Vec(59.000f, 47.000f)), m, M::FM_PARAM));
+	w->addParam(createParamCentered<SbKnobSmall>(mm2px(Vec(75.500f, 47.000f)), m, M::SLIDETIME_PARAM));
+	w->addParam(createParamCentered<SbKnobSmall>(mm2px(Vec(92.000f, 47.000f)), m, M::DRIFT_PARAM));
+	w->addParam(createParamCentered<SbKnobSmall>(mm2px(Vec(16.000f, 68.500f)), m, M::TUNE_PARAM));
+	w->addParam(createParamCentered<SbKnobSmall>(mm2px(Vec(38.000f, 68.500f)), m, M::WIDTH_PARAM));
+	w->addParam(createParamCentered<SbKnobSmall>(mm2px(Vec(60.000f, 68.500f)), m, M::CURVE_PARAM));
+	w->addParam(createParamCentered<SbKnobSmall>(mm2px(Vec(82.000f, 68.500f)), m, M::SHAPE_PARAM));
+	w->addInput(createInputCentered<SbJack>(mm2px(Vec(7.500f, 88.000f)), m, M::VOCT_INPUT));
+	w->addInput(createInputCentered<SbJack>(mm2px(Vec(19.800f, 88.000f)), m, M::SLIDE_INPUT));
+	w->addInput(createInputCentered<SbJack>(mm2px(Vec(32.100f, 88.000f)), m, M::PWM_INPUT));
+	w->addInput(createInputCentered<SbJack>(mm2px(Vec(44.400f, 88.000f)), m, M::MIX_INPUT));
+	w->addInput(createInputCentered<SbJack>(mm2px(Vec(56.700f, 88.000f)), m, M::FOLD_INPUT));
+	w->addInput(createInputCentered<SbJack>(mm2px(Vec(69.000f, 88.000f)), m, M::FM_INPUT));
+	w->addInput(createInputCentered<SbJack>(mm2px(Vec(81.300f, 88.000f)), m, M::SYNC_INPUT));
+	w->addInput(createInputCentered<SbJack>(mm2px(Vec(93.600f, 88.000f)), m, M::FOLDIN_INPUT));
+	w->addOutput(createOutputCentered<SbJack>(mm2px(Vec(22.000f, 107.000f)), m, M::SAW_OUTPUT));
+	w->addOutput(createOutputCentered<SbJack>(mm2px(Vec(41.000f, 107.000f)), m, M::SQUARE_OUTPUT));
+	w->addOutput(createOutputCentered<SbJack>(mm2px(Vec(60.000f, 107.000f)), m, M::SUB_OUTPUT));
+	w->addOutput(createOutputCentered<SbJack>(mm2px(Vec(79.000f, 107.000f)), m, M::OUT_OUTPUT));
+}
+template <class M, class W>
+inline void placeSBF(W* w, M* m) {
+	w->addParam(createParamCentered<SbKnob>(mm2px(Vec(16.000f, 25.000f)), m, M::CUTOFF_PARAM));
+	w->addInput(createInputCentered<SbJack>(mm2px(Vec(16.000f, 39.000f)), m, M::CUTOFF_INPUT));
+	w->addParam(createParamCentered<SbKnob>(mm2px(Vec(43.000f, 25.000f)), m, M::RESONANCE_PARAM));
+	w->addInput(createInputCentered<SbJack>(mm2px(Vec(43.000f, 39.000f)), m, M::RES_INPUT));
+	w->addParam(createParamCentered<SbKnob>(mm2px(Vec(70.000f, 25.000f)), m, M::ENVMOD_PARAM));
+	w->addInput(createInputCentered<SbJack>(mm2px(Vec(70.000f, 39.000f)), m, M::ENVMOD_INPUT));
+	w->addParam(createParamCentered<SbKnob>(mm2px(Vec(97.000f, 25.000f)), m, M::DECAY_PARAM));
+	w->addInput(createInputCentered<SbJack>(mm2px(Vec(97.000f, 39.000f)), m, M::DECAY_INPUT));
+	w->addParam(createParamCentered<SbKnob>(mm2px(Vec(124.000f, 25.000f)), m, M::ACCENT_PARAM));
+	w->addInput(createInputCentered<SbJack>(mm2px(Vec(124.000f, 39.000f)), m, M::ACCENTCV_INPUT));
+	w->addParam(createParamCentered<SbToggle3>(mm2px(Vec(9.000f, 57.500f)), m, M::MODE_PARAM));
+	w->addParam(createParamCentered<SbKnobSmall>(mm2px(Vec(28.000f, 57.000f)), m, M::DRIVE_PARAM));
+	w->addParam(createParamCentered<SbKnobSmall>(mm2px(Vec(47.000f, 57.000f)), m, M::BASSCOMP_PARAM));
+	w->addParam(createParamCentered<SbKnobSmall>(mm2px(Vec(66.000f, 57.000f)), m, M::KEYTRACK_PARAM));
+	w->addParam(createParamCentered<SbKnobSmall>(mm2px(Vec(85.000f, 57.000f)), m, M::FM_PARAM));
+	w->addParam(createParamCentered<SbKnobSmall>(mm2px(Vec(104.000f, 57.000f)), m, M::VCADECAY_PARAM));
+	w->addParam(createParamCentered<SbKnobSmall>(mm2px(Vec(123.000f, 57.000f)), m, M::ACCDECAY_PARAM));
+	w->addParam(createParamCentered<SbKnobSmall>(mm2px(Vec(14.000f, 75.000f)), m, M::CUTTRIM_PARAM));
+	w->addParam(createParamCentered<SbKnobSmall>(mm2px(Vec(36.800f, 75.000f)), m, M::RESTRIM_PARAM));
+	w->addParam(createParamCentered<SbKnobSmall>(mm2px(Vec(59.600f, 75.000f)), m, M::GATETRIM_PARAM));
+	w->addParam(createParamCentered<SbKnobSmall>(mm2px(Vec(82.400f, 75.000f)), m, M::BASS_PARAM));
+	w->addParam(createParamCentered<SbKnobSmall>(mm2px(Vec(105.200f, 75.000f)), m, M::POLES_PARAM));
+	w->addParam(createParamCentered<SbKnobSmall>(mm2px(Vec(128.000f, 75.000f)), m, M::ENVBIAS_PARAM));
+	w->addParam(createParamCentered<SbKnobSmall>(mm2px(Vec(14.000f, 89.500f)), m, M::ENVATTACK_PARAM));
+	w->addParam(createParamCentered<SbKnobSmall>(mm2px(Vec(36.800f, 89.500f)), m, M::RELEASE_PARAM));
+	w->addParam(createParamCentered<SbKnobSmall>(mm2px(Vec(59.600f, 89.500f)), m, M::ACCVCA_PARAM));
+	w->addParam(createParamCentered<SbKnobSmall>(mm2px(Vec(105.200f, 89.500f)), m, M::SWEEPSHAPE_PARAM));
+	w->addParam(createParamCentered<SbKnobSmall>(mm2px(Vec(128.000f, 89.500f)), m, M::CLICK_PARAM));
+	w->addParam(createParamCentered<SbToggle2>(mm2px(Vec(79.400f, 90.000f)), m, M::SWEEP_PARAM));
+	w->addInput(createInputCentered<SbJack>(mm2px(Vec(8.000f, 110.000f)), m, M::IN_INPUT));
+	w->addInput(createInputCentered<SbJack>(mm2px(Vec(18.600f, 110.000f)), m, M::GATE_INPUT));
+	w->addInput(createInputCentered<SbJack>(mm2px(Vec(29.200f, 110.000f)), m, M::TRIG_INPUT));
+	w->addInput(createInputCentered<SbJack>(mm2px(Vec(39.800f, 110.000f)), m, M::ACCENT_INPUT));
+	w->addInput(createInputCentered<SbJack>(mm2px(Vec(50.400f, 110.000f)), m, M::VOCT_INPUT));
+	w->addInput(createInputCentered<SbJack>(mm2px(Vec(61.000f, 110.000f)), m, M::FM_INPUT));
+	w->addInput(createInputCentered<SbJack>(mm2px(Vec(71.600f, 110.000f)), m, M::ENVIN_INPUT));
+	w->addChild(createLightCentered<SmallLight<RedLight>>(mm2px(Vec(18.600f, 100.500f)), m, M::GATE_LIGHT));
+	w->addChild(createLightCentered<SmallLight<RedLight>>(mm2px(Vec(39.800f, 100.500f)), m, M::ACCENT_LIGHT));
+	w->addOutput(createOutputCentered<SbJack>(mm2px(Vec(86.000f, 108.000f)), m, M::OUT_OUTPUT));
+	w->addOutput(createOutputCentered<SbJack>(mm2px(Vec(98.000f, 108.000f)), m, M::FILTER_OUTPUT));
+	w->addOutput(createOutputCentered<SbJack>(mm2px(Vec(110.000f, 108.000f)), m, M::FENV_OUTPUT));
+	w->addOutput(createOutputCentered<SbJack>(mm2px(Vec(122.000f, 108.000f)), m, M::SWEEP_OUTPUT));
+	w->addOutput(createOutputCentered<SbJack>(mm2px(Vec(134.000f, 108.000f)), m, M::VCAENV_OUTPUT));
+}
+template <class M, class W>
+inline void placeSBT(W* w, M* m) {
+	w->addParam(createParamCentered<SbKnob>(mm2px(Vec(11.000f, 47.000f)), m, M::SCALE_PARAM));
+	w->addParam(createParamCentered<SbKnob>(mm2px(Vec(29.640f, 47.000f)), m, M::ROOT_PARAM));
+	w->addParam(createParamCentered<SbKnobSmall>(mm2px(Vec(11.000f, 67.000f)), m, M::FINE_PARAM));
+	w->addParam(createParamCentered<SbButton>(mm2px(Vec(29.640f, 64.500f)), m, M::LOAD_PARAM));
+	w->addChild(createLightCentered<SmallLight<RedLight>>(mm2px(Vec(29.640f, 74.000f)), m, M::ACTIVE_LIGHT));
+	w->addInput(createInputCentered<SbJack>(mm2px(Vec(11.000f, 90.000f)), m, M::VOCT_INPUT));
+	w->addInput(createInputCentered<SbJack>(mm2px(Vec(29.640f, 90.000f)), m, M::SCALE_INPUT));
+	w->addOutput(createOutputCentered<SbJack>(mm2px(Vec(20.320f, 107.000f)), m, M::VOCT_OUTPUT));
+}
+
+constexpr float SBT_DISPLAY_X = 4.000f, SBT_DISPLAY_Y = 14.500f, SBT_DISPLAY_W = 32.640f, SBT_DISPLAY_H = 18.500f;

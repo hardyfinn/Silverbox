@@ -111,6 +111,7 @@ class Panel:
         self.outboxes = []   # (x0, y0, x1, y1)
         self.links = []
         self.display = None  # (x0, y0, x1, y1)
+        self.groups = []     # (x0, y0, x1, y1, title): thin outline, title breaking the top edge
         self.label_cap = label_cap
 
     def add(self, kind, pid, label, x, y, **ex):
@@ -137,6 +138,15 @@ class Panel:
 
     def led(self, pid, label, x, y):
         self.add("led", pid, label, x, y, cap=SMALL_CAP)
+
+    def group(self, title, x0, y0, x1, y1):
+        self.groups.append((x0, y0, x1, y1, title))
+
+    def group_title_box(self, g):
+        x0, y0, x1, y1, t = g
+        w = text_width(t, SMALL_CAP)
+        cx = (x0 + x1) / 2
+        return Box(cx - w / 2 - 0.8, y0 - SMALL_CAP / 2 - 0.3, cx + w / 2 + 0.8, y0 + SMALL_CAP / 2 + 0.3, f"group title {t}")
 
     def link(self, knob_id, jack_id):
         k = next(i for i in self.items if i["pid"] == knob_id)
@@ -215,6 +225,8 @@ class Panel:
         bx = self.boxes()
         if self.display:
             bx.append(Box(*self.display, "display"))
+        for g in self.groups:
+            bx.append(self.group_title_box(g))
         for i, a in enumerate(bx):
             if a.x0 < 1.6 or a.x1 > self.w - 1.6 or a.y0 < TOP_BAND + 1.0 or a.y1 > BOTTOM_BAND - 1.0:
                 errs.append(f"{a.what} leaves the panel area")
@@ -227,6 +239,12 @@ class Panel:
                 outside = a.x1 <= ob[0] or a.x0 >= ob[2] or a.y1 <= ob[1] or a.y0 >= ob[3]
                 if not (inside or outside):
                     errs.append(f"{a.what} crosses an output box")
+        for g in self.groups:
+            for a in self.boxes():
+                inside = a.inside(g[0], g[1], g[2], g[3])
+                outside = a.x1 <= g[0] or a.x0 >= g[2] or a.y1 <= g[1] or a.y0 >= g[3]
+                if not (inside or outside):
+                    errs.append(f"{a.what} crosses the {g[4]} outline")
         for it in self.items:
             if it["kind"] == "jack" and it["pid"].endswith("_OUTPUT"):
                 if not any(self.comp_box(it).inside(*ob) for ob in self.outboxes):
@@ -276,6 +294,12 @@ class Panel:
             x0, y0, x1, y1 = self.display
             g.append(f'<rect x="{x0 - 0.8:.2f}" y="{y0 - 0.8:.2f}" width="{x1 - x0 + 1.6:.2f}" height="{y1 - y0 + 1.6:.2f}" rx="1.2" fill="#2a2c2e"/>')
             g.append(f'<rect x="{x0:.2f}" y="{y0:.2f}" width="{x1 - x0:.2f}" height="{y1 - y0:.2f}" rx="0.6" fill="#0d0f0d"/>')
+        for grp in self.groups:
+            x0, y0, x1, y1, t = grp
+            tb = self.group_title_box(grp)
+            g.append(f'<path d="M{tb.x0:.2f},{y0:.2f} H{x0 + 1:.2f} Q{x0:.2f},{y0:.2f} {x0:.2f},{y0 + 1:.2f} V{y1 - 1:.2f} '
+                     f'Q{x0:.2f},{y1:.2f} {x0 + 1:.2f},{y1:.2f} H{x1 - 1:.2f} Q{x1:.2f},{y1:.2f} {x1:.2f},{y1 - 1:.2f} '
+                     f'V{y0 + 1:.2f} Q{x1:.2f},{y0:.2f} {x1 - 1:.2f},{y0:.2f} H{tb.x1:.2f}" fill="none" stroke="{INK}" stroke-width="0.3"/>')
         for (lx0, ly0, lx1, ly1) in self.links:
             g.append(f'<line x1="{lx0:.2f}" y1="{ly0:.2f}" x2="{lx1:.2f}" y2="{ly1:.2f}" stroke="{INK}" stroke-width="0.3"/>')
         for it in self.items:
@@ -293,6 +317,8 @@ class Panel:
             return any(ob[0] <= x <= ob[2] and ob[1] <= y <= ob[3] for ob in self.outboxes)
         for (t, x, base, cap_, anchor), it in self.all_labels():
             (silver if on_outbox(x, base - cap_ / 2) else ink).append(text_path(t, x, base, cap_, anchor))
+        for grp in self.groups:
+            ink.append(text_path(grp[4], (grp[0] + grp[2]) / 2, grp[1] + SMALL_CAP / 2, SMALL_CAP))
         o.append("".join(g))
         o.append(f'<path fill="{INK}" d="{" ".join(ink)}"/>')
         o.append(f'<path fill="{SILVER}" d="{" ".join(silver)}"/>')
@@ -415,6 +441,79 @@ for x, (pid, lab) in zip(jx, [("VOCT_OUTPUT", "1V/OCT"), ("GATE_OUTPUT", "GATE")
     p.jack(pid, lab, x, 107, cap=1.8)
 P.append(p)
 
+
+# ---------------------------------------------------------------- SBO (round 2) --
+p = Panel("SBO", "SBO · OSCILLATOR", 20)
+c6 = [9.5, 26.0, 42.5, 59.0, 75.5, 92.0]
+for x, (pid, lab) in zip([12.0, 31.4, 50.8, 70.2, 89.6], [("TUNING_PARAM", "TUNING"), ("PW_PARAM", "PULSE WIDTH"), ("MIX_PARAM", "WAVE MIX"),
+                                                         ("SUB_PARAM", "SUB"), ("FOLD_PARAM", "FOLD")]):
+    p.knob(pid, lab, x, 26)
+p.knob("SYMMETRY_PARAM", "SYMMETRY", c6[0], 47)
+for x, (pid, lab) in zip(c6[1:], [("PWM_PARAM", "PWM"), ("FOLDCV_PARAM", "FOLD CV"), ("FM_PARAM", "FM"),
+                                  ("SLIDETIME_PARAM", "SLIDE TIME"), ("DRIFT_PARAM", "DRIFT")]):
+    p.knob(pid, lab, x, 47, small=True)
+p.group("TRIM", 4.0, 58.5, p.w - 4.0, 75.5)
+for x, (pid, lab) in zip([16.0, 38.0, 60.0, 82.0], [("TUNE_PARAM", "TUNE"), ("WIDTH_PARAM", "WIDTH"), ("CURVE_PARAM", "SAW CURVE"),
+                                                   ("SHAPE_PARAM", "SQUARE SHAPE")]):
+    p.knob(pid, lab, x, 68.5, small=True, cap=1.8)
+jx = [7.5 + 12.3 * i for i in range(8)]
+for x, (pid, lab) in zip(jx, [("VOCT_INPUT", "1V/OCT"), ("SLIDE_INPUT", "SLIDE"), ("PWM_INPUT", "PWM"), ("MIX_INPUT", "MIX CV"),
+                             ("FOLD_INPUT", "FOLD"), ("FM_INPUT", "FM"), ("SYNC_INPUT", "SYNC"), ("FOLDIN_INPUT", "FOLD IN")]):
+    p.jack(pid, lab, x, 88, cap=1.8)
+p.outboxes.append((12.0, 100.6, p.w - 12.0, 119.6))
+for x, (pid, lab) in zip([22.0, 41.0, 60.0, 79.0], [("SAW_OUTPUT", "SAW"), ("SQUARE_OUTPUT", "SQUARE"), ("SUB_OUTPUT", "SUB"), ("OUT_OUTPUT", "OUT")]):
+    p.jack(pid, lab, x, 107)
+P.append(p)
+
+# ---------------------------------------------------------------- SBF (round 2) --
+p = Panel("SBF", "SBF · FILTER", 28)
+c5 = [16.0, 43.0, 70.0, 97.0, 124.0]
+for x, (pid, lab, cv, cvl) in zip(c5, [("CUTOFF", "CUT OFF FREQ", "CUTOFF", "CUTOFF CV"), ("RESONANCE", "RESONANCE", "RES", "RES CV"),
+                                       ("ENVMOD", "ENV MOD", "ENVMOD", "ENV MOD CV"), ("DECAY", "DECAY", "DECAY", "DECAY CV"),
+                                       ("ACCENT", "ACCENT", "ACCENTCV", "ACCENT CV")]):
+    p.knob(pid + "_PARAM", lab, x, 25)
+    p.jack(cv + "_INPUT", cvl, x, 39, cap=1.8)
+    p.link(pid + "_PARAM", cv + "_INPUT")
+p.switch("MODE_PARAM", "MODE", ["LP", "BP", "HP"], 9.0, 57.5)
+for x, (pid, lab) in zip([28.0, 47.0, 66.0, 85.0, 104.0, 123.0], [("DRIVE_PARAM", "DRIVE"), ("BASSCOMP_PARAM", "BASS COMP"),
+                                                               ("KEYTRACK_PARAM", "KEY TRACK"), ("FM_PARAM", "FM"),
+                                                               ("VCADECAY_PARAM", "VCA DECAY"), ("ACCDECAY_PARAM", "ACCENT DECAY")]):
+    p.knob(pid, lab, x, 57.0, small=True, cap=1.8)
+p.group("TRIM", 4.0, 65.2, p.w - 4.0, 97.0)
+tx = [14.0 + 22.8 * i for i in range(6)]
+for x, (pid, lab) in zip(tx, [("CUTTRIM_PARAM", "CUTOFF TRIM"), ("RESTRIM_PARAM", "RES TRIM"), ("GATETRIM_PARAM", "GATE TRIM"),
+                             ("BASS_PARAM", "BASS"), ("POLES_PARAM", "POLES"), ("ENVBIAS_PARAM", "ENV BIAS")]):
+    p.knob(pid, lab, x, 75.0, small=True, cap=1.8)
+for x, (pid, lab) in zip(tx[:3] + tx[4:], [("ENVATTACK_PARAM", "ENV ATTACK"), ("RELEASE_PARAM", "RELEASE"), ("ACCVCA_PARAM", "ACCENT VCA"),
+                                          ("SWEEPSHAPE_PARAM", "SWEEP SHAPE"), ("CLICK_PARAM", "CLICK")]):
+    p.knob(pid, lab, x, 89.5, small=True, cap=1.8)
+p.switch("SWEEP_PARAM", "SWEEP", ["GANGED", "FREE"], tx[3] - 3.0, 90.0)
+jx = [8.0 + 10.6 * i for i in range(7)]
+for x, (pid, lab) in zip(jx, [("IN_INPUT", "IN"), ("GATE_INPUT", "GATE"), ("TRIG_INPUT", "TRIG"), ("ACCENT_INPUT", "ACCENT"),
+                             ("VOCT_INPUT", "1V/OCT"), ("FM_INPUT", "FM"), ("ENVIN_INPUT", "ENV IN")]):
+    p.jack(pid, lab, x, 110, cap=1.8)
+p.led("GATE_LIGHT", "GATE", jx[1], 100.5)
+p.led("ACCENT_LIGHT", "ACCENT", jx[3], 100.5)
+p.outboxes.append((79.4, 102.6, p.w - 2.0, 120.2))
+for x, (pid, lab) in zip([86.0, 98.0, 110.0, 122.0, 134.0], [("OUT_OUTPUT", "OUT"), ("FILTER_OUTPUT", "FILTER\nOUT"),
+                                                           ("FENV_OUTPUT", "FILTER\nENV"), ("SWEEP_OUTPUT", "ACCENT\nSWEEP"),
+                                                           ("VCAENV_OUTPUT", "VCA\nENV")]):
+    p.jack(pid, lab, x, 108, cap=1.8)
+P.append(p)
+
+# ---------------------------------------------------------------- SBT (round 2) --
+p = Panel("SBT", "SBT · TUNER", 8, label_cap=1.8)
+p.display = (4.0, 14.5, p.w - 4.0, 33.0)
+p.knob("SCALE_PARAM", "SCALE", 11.0, 47)
+p.knob("ROOT_PARAM", "ROOT", 29.64, 47)
+p.knob("FINE_PARAM", "FINE", 11.0, 67, small=True)
+p.button("LOAD_PARAM", "LOAD", 29.64, 64.5)
+p.led("ACTIVE_LIGHT", "ACTIVE", 29.64, 74.0)
+p.jack("VOCT_INPUT", "1V/OCT IN", 11.0, 90)
+p.jack("SCALE_INPUT", "SCALE CV", 29.64, 90)
+p.outboxes.append((10.3, 100.6, 30.3, 119.6))
+p.jack("VOCT_OUTPUT", "1V/OCT OUT", 20.32, 107)
+P.append(p)
 
 # ---------------------------------------------------------------- components --
 def components():
