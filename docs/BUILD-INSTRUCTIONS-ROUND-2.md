@@ -9,8 +9,8 @@ Read first: `docs/BUILD-INSTRUCTIONS.md` (round 1 spec; its ground rules §0, si
 
 | Question | Answer |
 |---|---|
-| Existing modules | **SBV, SBS and SBX must not change** in sound, behaviour, memory format or panel layout |
-| New modules | **SBO** Silverbox Oscillator, **SBF** Silverbox Filter (filter with both envelopes, the accent circuit and the VCA), **SBT** Silverbox Tuner (Scala microtuning as its own module; SBS gets no tuning code) |
+| Existing modules | SBV, SBS and SBX stay as they are, with **two changes Hardy asked for** (§1a): SBV's cutoff range is corrected to the service-note calibration, and SBS gains Scala tuning in its menu. Nothing else about them changes: behaviour, memory format, panel layout |
+| New modules | **SBO** Silverbox Oscillator, **SBF** Silverbox Filter (filter with both envelopes, the accent circuit and the VCA), **SBT** Silverbox Tuner (Scala microtuning as its own module). Scala tuning **also** lives in SBS |
 | Oscillator | PWM and a wavefolder before the filter, plus the extras in §2 |
 | Filter | LP / BP / HP switch; board trimmers and fixed values exposed as knobs; GATE TRIM shortens the note |
 | Panels | The "clean silver" style now in `scripts/make_panels.py` (flat, no texture). Text labels on everything |
@@ -20,12 +20,24 @@ Read first: `docs/BUILD-INSTRUCTIONS.md` (round 1 spec; its ground rules §0, si
 
 ## 0. Stability rules (these come first)
 
-1. **Do not edit** `Osc303.hpp`, `DiodeLadder303.hpp`, `Envelopes303.hpp`, `Voice303.hpp`, `Pattern.hpp`, `SeqEngine.hpp`, `Voice.cpp`, `SBS.cpp`, or any value in `Constants303.hpp`. New constants go in a new file, `src/dsp/ConstantsX.hpp`. New DSP goes in new files (`OscX.hpp`, `Folder.hpp`, `DiodeLadderX.hpp`, `VoiceBackX.hpp`, `src/tuning/Scala.hpp`, `src/tuning/Tuner.hpp`). Shared helpers (`Filters1.hpp`, `Oversample.hpp`, `Blep.hpp`) may be included but not changed. You may include the round 1 headers and reuse their classes (for example `DecayEnv`, `AccentSweep`, `SlideLag`).
-2. **Golden test.** Before writing anything else, add `tests/test_golden.cpp`: render 4 s of the SBS demo pattern through `Voice303` (the settings of the existing end-to-end test, saw then square) and 4 s of `SeqEngine` outputs, hash the samples (FNV-1a over the raw float bits), and hard-code the hashes as produced by the current `main`. This test must still pass at the end. If floating-point differences between compilers make an exact hash impossible in CI, compare against a stored 16-bit rendering with a tolerance of 1 LSB instead, and say so in DECISIONS.md.
+1. **Do not edit** `Osc303.hpp`, `DiodeLadder303.hpp`, `Envelopes303.hpp`, `Voice303.hpp`, `Pattern.hpp`, `SeqEngine.hpp` or `Voice.cpp`, and change nothing in `Constants303.hpp` or `SBS.cpp` beyond what §1a lists. New constants go in a new file, `src/dsp/ConstantsX.hpp`. New DSP goes in new files (`OscX.hpp`, `Folder.hpp`, `DiodeLadderX.hpp`, `VoiceBackX.hpp`, `src/tuning/Scala.hpp`, `src/tuning/Tuner.hpp`). Shared helpers (`Filters1.hpp`, `Oversample.hpp`, `Blep.hpp`) may be included but not changed. You may include the round 1 headers and reuse their classes (for example `DecayEnv`, `AccentSweep`, `SlideLag`).
+2. **Golden test.** Make the §1a cutoff change first. Then, before writing anything else, add `tests/test_golden.cpp`: render 4 s of the SBS demo pattern through `Voice303` (the settings of the existing end-to-end test, saw then square) and 4 s of `SeqEngine` outputs, hash the samples (FNV-1a over the raw float bits), and hard-code the hashes as produced at that point. This test must still pass at the end. If floating-point differences between compilers make an exact hash impossible in CI, compare against a stored 16-bit rendering with a tolerance of 1 LSB instead, and say so in DECISIONS.md.
 3. The panel script must regenerate `res/SBV.svg`, `res/SBS.svg` and `res/SBX.svg` byte-identically (check with `git diff --stat` after `make panels`).
 4. Version becomes `2.1.0`. New module slugs: `SBO`, `SBF`, `SBT`. Names in `plugin.json`: `SBO Silverbox Oscillator`, `SBF Silverbox Filter`, `SBT Silverbox Tuner`. Descriptions should contain "303" and "acid" (SBO, SBF) and "Scala microtuning" (SBT). Keep trademarks out of names and descriptions as before.
 
 ---
+
+## 1a. The two changes to existing modules
+
+**SBV cutoff calibration.** The service notes put the resonant frequency at 500 Hz ± 100 Hz with CUT OFF FREQ half way (full resonance, ENV MOD at minimum, saw at C 65.4 Hz). Round 1's range of 300 Hz to 5 kHz sits at about 1.2 kHz there. In `Constants303.hpp` set `CUT_LO = 125` and `CUT_HI = 2000`, update their comments, and nothing else. Re-run the round 1 tests and adjust only those whose numbers depend on the cutoff range (for example the BASS COMP test computes its knob position from the constants and should still pass; the output-level and render checks may need `OUT_LEVEL` left alone and their bounds reviewed). Add a test for the calibration condition (peak between 400 and 600 Hz). Record the change in DECISIONS.md and in the manual ("patches saved before 2.1.0 will sound darker; turn CUT OFF FREQ up by about a third of its travel to get the old sound").
+
+**Scala tuning in SBS.** SBS uses the same `Scala.hpp` parser and the same mapping code as SBT (§4.3), applied to the engine's pitch output inside `SBS.cpp`; `SeqEngine.hpp` and the pattern memory are not touched.
+- Context menu additions: Tuning ▸ Load Scala scale (.scl)… ; Load keyboard mapping (.kbm)… ; Built-in scales ▸ (the §4.4 list); Key mapping ▸ "12 keys per period" / "One key per degree"; Root ▸ C … B; Reset to 12-tone equal.
+- The engine's semitone number for the playing note (pattern note + UP/DOWN + key transpose + track transpose) is mapped through the scale, so keys are scale degrees, UP and DOWN move by one period, and key transposes move by degrees. The **TRANSPOSE jack is added after the mapping as an exact pitch shift** (its semitone quantising stays).
+- The scale is saved in the patch JSON under a new key (`tuning`), absent when 12-tone equal, so old patches load unchanged and a patch with no scale produces identical output (the golden test covers this).
+- The display header shows the scale name after the tempo when a scale is loaded (shorten to fit).
+- Hand-off from the UI thread as for memory import (atomic pointer swap).
+- Tests: with no scale the output voltages equal round 1's; with Just intonation the demo pattern's notes land on the just pitches; UP adds exactly one period; TRANSPOSE adds exact volts.
 
 ## 1. What the three modules are for
 
@@ -55,10 +67,11 @@ Notation: **K** knob, **k** small knob, **S** switch, **I** input, **O** output,
 | k (TRIM row) | TUNE | −100 to +100 cents, 0 | Board trimmer TM4 |
 | k (TRIM row) | WIDTH | 0.90 to 1.10 V/oct scale, 1.00 | Board trimmer TM5; scaling pivots at 0 V |
 | k (TRIM row) | SAW CURVE | 0 to 3, 0.6 (stock) | The saw's curvature `K` |
+| k (TRIM row) | SQUARE SHAPE | 1.5 to 20, 6 (stock) | Gain of the square's transistor shaper (`SQ_GAIN`): low is rounded and soft, high is hard-edged |
 | I | 1V/OCT, SLIDE, PWM, MIX CV, FOLD, FM, SYNC, FOLD IN | | MIX CV: ±5 V = ±1. SYNC: rising edge through 0 V. FOLD IN is normalled to the mixed oscillator signal |
 | O | SAW, SQUARE, SUB, OUT | | SAW and SQUARE about ±5 V; OUT is mix + sub, through the folder |
 
-The panel has a titled `TRIM` group for the three trimmers. All labels as named above.
+The panel has a titled `TRIM` group for the four trimmers. All labels as named above.
 
 ### 2.2 Core
 - Pitch: `V' = WIDTH · V_in`; slide exactly as `SlideLag` in SBV (mode chosen at each pitch change; there is no gate here, so pass `gateRise = false`), with SLIDE TIME as in SBX. `f = 65.406 · 2^(V' + (TUNING + TUNE/100)/12 + drift)`.
@@ -122,6 +135,11 @@ The back half of the voice: input → diode ladder → VCA, with the MEG, the VE
 | k (TRIM row) | BASS | 20 Hz to 400 Hz, 150 Hz (stock) | Corner of the high-pass in the resonance feedback path |
 | k (TRIM row) | POLES | 1.0 to 3.0, 1.8 (stock) | Ratio of the bottom ladder capacitor; 1.0 is four equal stages |
 | k (TRIM row) | ENV BIAS | 0 to 2 octaves, 1.2 (stock) | How far full ENV MOD lowers the resting cutoff |
+| k (TRIM row) | ENV ATTACK | 3 ms (stock) to 300 ms | Filter envelope attack. Longer values give swelling "wow" sweeps |
+| k (TRIM row) | RELEASE | 4 ms (stock) to 1 s | How fast the VCA closes when the gate ends. Longer lets notes ring and overlap |
+| k (TRIM row) | ACCENT VCA | 0 to 2, 1 (stock) | Scales how much an accent raises the volume, separately from how much it opens the filter (one pot does both on the board) |
+| S + k (TRIM row) | SWEEP: GANGED / FREE, and SWEEP SHAPE 0 to 1 | GANGED (stock) | GANGED: the accent sweep's charge and discharge follow RESONANCE, as on the board's dual pot. FREE: they follow SWEEP SHAPE instead, so resonance and accent shape can be set independently |
+| k (TRIM row) | CLICK | 0 to 1, 0 (stock model) | Adds the note-on thump of an untrimmed VCA: a fraction of the VEG's attack edge leaks into the output (band-limited, up to about 0.5 V), giving notes a percussive front |
 | I | IN | | Audio, ±5 V nominal |
 | I | GATE, TRIG, ACCENT | | §3.5 |
 | I | 1V/OCT | | For KEY TRACK only |
@@ -131,7 +149,7 @@ The back half of the voice: input → diode ladder → VCA, with the MEG, the VE
 | O | OUT, FILTER OUT, FILTER ENV, ACCENT SWEEP, VCA ENV | | FILTER OUT is before the VCA, at a level that matches OUT for a held note. Envelopes 0 to 10 V |
 | L | GATE, ACCENT | | |
 
-Expect about 20 HP; widen as needed to meet the layout rules. Group the six trimmers under a `TRIM` title, and the CV jacks in one row directly under the knobs they belong to where that is possible.
+Expect about 20 HP; widen as needed to meet the layout rules. Group the trimmers under a `TRIM` title (two rows if needed), and the CV jacks in one row directly under the knobs they belong to where that is possible.
 
 ### 3.2 Ladder (`DiodeLadderX.hpp`)
 Same structure as `DiodeLadder303` (coupled four-stage ladder, trapezoidal integration, tridiagonal solve, saturating input node, feedback through a high-pass) with two things made variable:
@@ -147,7 +165,7 @@ As SBV §5.3 with these changes:
 base = log2(CUT_LO_X) + CUTOFF · log2(CUT_HI_X / CUT_LO_X) + CUTOFF TRIM
 offset = −ENV_MOD · ENV BIAS
 ```
-- **Calibration from the service notes:** with CUT OFF FREQ at 50%, RESONANCE at full, ENV MOD at 0 and a saw at C (65.4 Hz), the resonant frequency should be **500 Hz ± 100 Hz** (the TM3 adjustment). So `CUT_LO_X = 125 Hz`, `CUT_HI_X = 2000 Hz` (centre 500 Hz) with CUTOFF TRIM at 0. This is deliberately different from SBV, whose range (300 Hz to 5 kHz) was an estimate made before this figure was found; SBV is not to be changed. CUTOFF TRIM at +1.3 octaves reproduces SBV's range, and the manual says so.
+- **Calibration from the service notes:** with CUT OFF FREQ at 50%, RESONANCE at full, ENV MOD at 0 and a saw at C (65.4 Hz), the resonant frequency should be **500 Hz ± 100 Hz** (the TM3 adjustment). So `CUT_LO_X = 125 Hz`, `CUT_HI_X = 2000 Hz` (centre 500 Hz) with CUTOFF TRIM at 0. SBV is corrected to the same range in §1a. CUTOFF TRIM at +1.3 octaves reproduces the old, brighter round 1 range.
 - Everything else (ENV_OCT 4, ACC_OCT 2.5, CUTOFF CV, KEY TRACK, FM, clamps) as SBV, using the SBF knob values with their CVs added.
 
 ### 3.4 Modes
@@ -167,7 +185,8 @@ The feedback always comes from stage 4, so resonance, the accent behaviour and t
 - **TRIG** (when patched): a rising edge restarts both envelopes even while GATE is high. If GATE is unpatched, TRIG alone plays notes: each trigger opens an internal gate lasting until GATE TRIM's time (or 125 ms when GATE TRIM is OFF).
 - **ACCENT is a level.** `on = V ≥ 1 V` (Schmitt 0.5/1.0). `strength = clamp(V / 5 V, 0.2, 1)` while on. A normal 5 V or 10 V gate gives strength 1, so SBS and any gate sequencer behave as with SBV. ACCENT CV adds to the ACCENT knob as usual; strength multiplies the accent sweep's contribution to cutoff and the VCA boost. The forced MEG decay (ACCENT DECAY) applies whenever `on` at the gate's rising edge, whatever the strength.
 - **ENV IN** patched: `m(t) = clamp(ENV IN / 10, 0, 1)` replaces the MEG for the cutoff and for the accent sweep. FILTER ENV then outputs that value.
-- MEG and VEG are the round 1 classes with VCA DECAY and ACCENT DECAY in place of the fixed values. Attack times as stock.
+- MEG and VEG follow the round 1 classes with VCA DECAY, ACCENT DECAY, ENV ATTACK and RELEASE in place of the fixed values (write variants in the new files where the round 1 classes hard-code a constant). VEG attack as stock.
+- Tests for the added controls: ENV ATTACK 100 ms puts the MEG peak 90 to 110 ms after the gate; RELEASE 500 ms leaves the VCA above 10% at 200 ms after gate off; ACCENT VCA 0 removes the level boost while the cutoff sweep is unchanged; SWEEP FREE makes the sweep peak time independent of RESONANCE; CLICK 0 is sample-identical to no click and CLICK 1 adds a transient of 0.3 to 0.6 V with a silent input.
 
 ### 3.6 GATE TRIM
 Shortens notes from any sequencer. It is an absolute hold time: the VCA closes (stock 4 ms release) when GATE falls **or** when the time since the last envelope start exceeds GATE TRIM, whichever comes first. Fully clockwise is OFF: the note lasts as long as the gate (stock). Taper: exponential, 20 ms to 2 s over the first 95% of the travel, OFF above that; the tooltip shows milliseconds or "Off". The MEG is not affected. Note for the manual: a slide holds the gate across notes, so a short GATE TRIM will cut the second note of a slide; that is expected.
@@ -176,7 +195,7 @@ Shortens notes from any sequencer. It is an absolute hold time: the VCA closes (
 `FILTER OUT = tap · FILTER_OUT_LEVEL`; `OUT = outHP(tap · VCA) · OUT_LEVEL`, soft limit ±10 V, as SBV. Oversampling as SBV. Input: `x = IN / 5`.
 
 ### 3.8 Tests (SBF)
-- **Equivalence with SBV.** `Osc303` saw → SBF model with CUTOFF TRIM +1.263 octaves (= log2(300/125)) and the cutoff span matched to SBV (give the model class a test hook for `CUT_LO/HI`), everything else stock, driven by the demo pattern's gate and accent: output equals `Voice303` driven by the same pattern within −60 dB RMS error. (It will not be bit-exact, because SBV's slide and key tracking live in one object.)
+- **Equivalence with SBV.** `Osc303` saw → SBF model with everything stock (after §1a both use 125 Hz to 2 kHz), driven by the demo pattern's gate and accent: output equals `Voice303` driven by the same pattern within −60 dB RMS error. (It will not be bit-exact, because SBV's slide and key tracking live in one object.)
 - Calibration: the §3.3 condition gives a resonant peak between 400 and 600 Hz.
 - Tables reproduce round 1 values (§3.2). Self-oscillation tests (§3.2). Mode tests (§3.4).
 - BASS at 20 Hz: the resonance gain at an 80 Hz cutoff is within 3 dB of that at 800 Hz (compare round 1, where it is about 9 dB lower).
@@ -222,7 +241,7 @@ With scale cents `c[0] = 0, c[1..N]`, period `P = c[N]`, and `k = key − ROOT`:
 - With a `.kbm` loaded for the slot, its mapping replaces both modes: keys map per the file relative to its middle note (treat MIDI note 60 as 0 V), unmapped keys hold the previous output, and the reference note and frequency set the absolute pitch (convert with 0 V = C4 = 261.6256 Hz for the reference only).
 - 12-tone equal in a slot gives `V_out = V_in + FINE/1200` exactly (test: error < 1e-6 V).
 
-Note for the manual: SBS outputs exact semitone voltages, so SBS → SBT → SBV (or SBO) retunes the sequencer, UP and DOWN move by one period, and SBS's key transpose becomes a transpose by scale degrees. The TRANSPOSE jack on SBS is also in semitone steps, so it too moves by degrees; for an exact pitch shift add a voltage after SBT.
+Note for the manual: SBS outputs exact semitone voltages, so SBS → SBT → SBV (or SBO) retunes the sequencer, UP and DOWN move by one period, and SBS's key transpose becomes a transpose by scale degrees. Through SBT the TRANSPOSE jack on SBS also moves by degrees; SBS's own Tuning menu (§1a) keeps that jack an exact pitch shift. Do not use both at once.
 
 ### 4.4 Built-in scales
 So SBT is useful with no files: 12-tone equal; Just intonation (5-limit: 16/15 9/8 6/5 5/4 4/3 45/32 3/2 8/5 5/3 9/5 15/8 2/1); Pythagorean; Quarter-comma meantone; Werckmeister III; Harmonic series 8 to 16 (9/8 10/8 … 16/8); 7-tone equal; 19-tone equal; 24-tone equal; Bohlen-Pierce (13 equal steps of 3/1); Wendy Carlos alpha (78.0 cent steps, period 15 steps); Slendro (5 equal, as an approximation); Pelog (a published approximation; cite the source in CREDITS.md). Check each table against a reference before committing, and log the sources. Default slots: slot 1 = 12-tone equal; slots 2 to 8 = Just, Pythagorean, Meantone, 7-equal, 19-equal, Bohlen-Pierce, Harmonic 8-16.
@@ -257,19 +276,19 @@ Extend `docs/MANUAL.md` and regenerate the PDF and the panel image: a section pe
 9. **Microtonal acid**: SBS → SBT → SBV with Just intonation, then Bohlen-Pierce with "One key per degree"; switching scales per pattern with SCALE CV from a sequencer.
 10. **SBF as a processor** for drums or another oscillator, with TRIG from a clock.
 
-Also add the round 1 correction: the service notes put the resonant frequency at 500 Hz with CUT OFF FREQ at half way, so SBV is brighter than a calibrated 303 by about 1.3 octaves; SBF follows the service notes.
+Also document the two §1a changes: SBV's corrected cutoff range, and the Tuning menu on SBS (with a note on when to use SBS's own tuning and when SBT: SBT for other sequencers, for CV-switched scale slots and for polyphony).
 
 ## 7. Order of work
-1. Golden test (§0.2), passing on current `main`.
+1. SBV cutoff correction (§1a), then the golden test (§0.2).
 2. `ConstantsX.hpp`, calibration script extensions and tables, `DiodeLadderX` with tests.
 3. `OscX`, `Folder` with tests. `VoiceBackX` (SBF model) with tests, including the equivalence test.
-4. `Scala.hpp`, `Tuner.hpp` with tests.
+4. `Scala.hpp`, `Tuner.hpp` with tests; Scala in SBS (§1a).
 5. Modules `SBO.cpp`, `SBF.cpp`, `SBT.cpp`; panels; `plugin.json`; CI symbol check extended to the new names.
 6. Manual, PDF, DECISIONS.md (continue the numbering), CREDITS.md. Full test pass, golden test still passing, CI green.
 7. Hand-over note: what was built, decisions, anything unverified, and a rendered demo (`tests/out/demo2.wav`: the demo pattern through SBO + SBF with a fold sweep, then band-pass, then through SBT in Just intonation).
 
 ## 8. Accuracy ledger
 **From sources:** board trimmers TM3 (VCF cutoff; 500 Hz ± 100 Hz resonance at half cutoff, full resonance, C 65.4 Hz, per the Roland notes as quoted in the x0xb0x build pages), TM4 (VCO tune, A = 110 Hz) and TM5 (VCO width, 2:1 octaves). Scala file formats (Huygens-Fokker). SH-101-style divider sub-oscillator.
-**Not confirmed:** the functions of the board's other trimmers (the sources reached list only TM3 to TM5 plus an optional VCA offset trim). GATE TRIM, RES TRIM, BASS, POLES and ENV BIAS are fixed component values made variable for this plugin, not original trimmers; say so in the manual.
+**Not confirmed:** the functions of the board's other trimmers (the sources reached list only TM3 to TM5 plus an optional VCA offset trim). GATE TRIM, RES TRIM, BASS, POLES, ENV BIAS, ENV ATTACK, RELEASE, ACCENT VCA, SWEEP and SQUARE SHAPE are fixed component values or ganged parts made variable for this plugin, not original trimmers; say so in the manual.
 **Estimates:** folder law and corner rounding, drift depth and rate, sub level, accent strength law, all ranges of the new knobs, the BP/HP normalisation.
 **Sources:** https://smakela.github.io/re-303-buildguide/docs/build_calibration ; https://www.ladyada.net/make/x0xb0x/fab/vcf/index.html ; https://www.manualslib.com/manual/3378574/Roland-Tb-303.html ; https://www.huygens-fokker.org/scala/scl_format.html
