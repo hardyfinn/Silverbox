@@ -188,7 +188,7 @@ TEST("SBS pattern change is queued to the loop end; track play with transpose") 
 	t.track[0].slot[0].pattern = 0; t.track[0].slot[1].pattern = 1; t.track[0].slot[1].transpose = 5;
 	t.ctl.mode = TRACK_PLAY;
 	t.setRunning(true);
-	Log l = runEngine(t, 0.5f + 0.01f);
+	Log l = runEngine(t, 0.5f + 0.02f);   // run past the sample read below
 	CHECK_NEAR(l.o[(size_t)(0.01f / l.dt)].voct, 0.f, 1e-6);
 	CHECK_NEAR(l.o[(size_t)(0.26f / l.dt)].voct, 7.f / 12.f, 1e-6);
 	CHECK_NEAR(l.o[(size_t)(0.51f / l.dt)].voct, 0.f, 1e-6);

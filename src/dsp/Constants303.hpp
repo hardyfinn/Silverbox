@@ -41,8 +41,8 @@ constexpr float DRIVE_IN = 1.0f;          // level into the ladder (est.)
 constexpr float SAT_LEVEL = 1.6f;         // soft saturation of the ladder input node (est.)
 
 // ---- cutoff law (spec §5.3). Frequencies are the resonant peak. --------------
-constexpr float CUT_LO = 300.f;           // Hz at CUT OFF FREQ = 0 (est.)
-constexpr float CUT_HI = 5000.f;          // Hz at CUT OFF FREQ = 1 (est.)
+constexpr float CUT_LO = 125.f;           // Hz at CUT OFF FREQ = 0. Range centred on 500 Hz at half way (service-note TM3 calibration, 2.1.0)
+constexpr float CUT_HI = 2000.f;          // Hz at CUT OFF FREQ = 1. Was 300 Hz to 5 kHz before 2.1.0
 constexpr float ENV_OCT = 4.0f;           // octaves of MEG sweep at full ENV MOD (est.)
 constexpr float ENV_SHIFT = 1.2f;         // octaves the resting cutoff drops at full ENV MOD (est.)
 constexpr float ACC_OCT = 2.5f;           // octaves of accent sweep at full ACCENT (est.)

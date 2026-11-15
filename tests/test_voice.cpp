@@ -2,6 +2,7 @@
 #include "check.hpp"
 #include "../src/dsp/Voice303.hpp"
 #include <algorithm>
+#include <vector>
 
 using namespace sb;
 
@@ -86,10 +87,12 @@ TEST("SBV filter: slope under 24 dB/oct, resonant peak, ringing, feedback high-p
 	CHECK(dB(pk / pass) >= 15.f);
 	// the peak is at fc (within the shift the feedback high-pass causes)
 	CHECK(pkF > 0.95f && pkF < 1.15f);
-	// impulse rings at least 200 ms at CUT OFF FREQ 0.5 but does not sustain
+	// impulse rings at least 200 ms at 1.22 kHz (above the 600 Hz compensation corner) but does not sustain.
+	// Before 2.1.0 this was CUT OFF FREQ 0.5; after the TM3 calibration half way is 500 Hz, where resonance
+	// thins by design, so the frequency is now fixed at the old half-way value.
 	{
 		DiodeLadder303 l; float fs = 192000.f; l.setRate(fs);
-		float f = CUT_LO * std::sqrt(CUT_HI / CUT_LO);
+		float f = std::sqrt(300.f * 5000.f);
 		float early = 0, at200 = 0, late = 0;
 		for (int i = 0; i < (int)(fs * 3); i++) {
 			float y = std::fabs(l.process(i == 0 ? 1.f : 0.f, f, resonanceK(1.f, f)));
@@ -277,4 +280,39 @@ TEST("SBV no retrigger while GATE stays high") {
 	float m = r.v.meg.v;
 	r.in.voct = 0.5f; r.step();
 	CHECK(r.v.meg.v <= m);
+}
+
+// Service-note calibration (round 2 §1a): CUT OFF FREQ half way, RESONANCE full, ENV MOD 0,
+// saw at C 65.4 Hz: the resonant peak sits at 500 Hz +- 100 Hz.
+TEST("SBV calibration: resonant peak 400 to 600 Hz at CUT OFF FREQ half way") {
+	float fs = 48000.f;
+	Rig r(fs);
+	r.p.cutoff = 0.5f; r.p.resonance = 1.f; r.p.envMod = 0.f; r.p.square = false;
+	r.in.gate = true; r.in.voct = 0.f;
+	r.run(0.2f);
+	int n = (int)(fs * 1.0f);
+	std::vector<float> y(n);
+	for (int i = 0; i < n; i++) y[i] = r.step().out;
+	// harmonic magnitudes, weighted by k to undo the saw's 1/k spectrum
+	auto mag = [&](double hz) {
+		double re = 0, im = 0;
+		for (int i = 0; i < n; i++) {
+			double w = 0.5 - 0.5 * std::cos(2 * M_PI * i / (n - 1));
+			re += y[i] * w * std::cos(2 * M_PI * hz * i / fs);
+			im -= y[i] * w * std::sin(2 * M_PI * hz * i / fs);
+		}
+		return std::sqrt(re * re + im * im);
+	};
+	double f0 = BASE_FREQ;
+	std::vector<double> h(31, 0.0);
+	int best = 1;
+	for (int k = 1; k <= 30; k++) { h[k] = mag(k * f0) * k; if (h[k] > h[best]) best = k; }
+	double peak = best * f0;
+	if (best > 1 && best < 30) {   // parabolic interpolation in dB
+		double a = std::log(h[best - 1]), b = std::log(h[best]), c = std::log(h[best + 1]);
+		double d = 0.5 * (a - c) / (a - 2 * b + c);
+		peak = (best + d) * f0;
+	}
+	INFO("  resonant peak %.0f Hz (harmonic %d), control fc %.0f Hz\n", peak, best, r.v.lastFcHz);
+	CHECK(peak >= 400.0 && peak <= 600.0);
 }
